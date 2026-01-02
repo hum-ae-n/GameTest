@@ -1,0 +1,2309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Monster Battle Simulator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cinzel+Decorative:wght@700;900&family=MedievalSharp&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --parchment: #f4e4bc;
+            --parchment-dark: #d4c4a0;
+            --ink: #2c1810;
+            --blood-red: #8b0000;
+            --gold: #c9a227;
+            --gold-light: #ffd700;
+            --shadow: rgba(0, 0, 0, 0.5);
+        }
+
+        body {
+            font-family: 'MedievalSharp', cursive;
+            background: linear-gradient(135deg, #1a0a0a 0%, #2d1f1f 50%, #1a0a0a 100%);
+            min-height: 100vh;
+            color: var(--ink);
+            overflow-x: hidden;
+        }
+
+        /* Parchment texture overlay */
+        .parchment {
+            background:
+                url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E"),
+                linear-gradient(to bottom, var(--parchment) 0%, var(--parchment-dark) 100%);
+            border: 8px solid transparent;
+            border-image: linear-gradient(45deg, #8b4513, #d4a574, #8b4513) 1;
+            box-shadow:
+                inset 0 0 50px rgba(139, 69, 19, 0.3),
+                0 10px 30px var(--shadow);
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 30px 20px;
+            background: linear-gradient(to bottom, #1a0505, #3d1515);
+            border-bottom: 4px solid var(--gold);
+            position: relative;
+        }
+
+        header::before, header::after {
+            content: '⚔';
+            font-size: 2rem;
+            color: var(--gold);
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        header::before { left: 20px; }
+        header::after { right: 20px; }
+
+        h1 {
+            font-family: 'Cinzel Decorative', cursive;
+            font-size: 3rem;
+            color: var(--gold);
+            text-shadow:
+                2px 2px 4px #000,
+                0 0 20px rgba(201, 162, 39, 0.5);
+            letter-spacing: 3px;
+        }
+
+        h1 span {
+            color: var(--blood-red);
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        .subtitle {
+            font-family: 'Cinzel', serif;
+            color: #ccc;
+            margin-top: 10px;
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Monster Selection */
+        .selection-phase {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 30px;
+            align-items: start;
+            margin-bottom: 30px;
+        }
+
+        .monster-select-panel {
+            padding: 25px;
+            border-radius: 10px;
+        }
+
+        .panel-title {
+            font-family: 'Cinzel Decorative', cursive;
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--gold);
+        }
+
+        .panel-title.red { color: var(--blood-red); }
+        .panel-title.blue { color: #1e3a5f; }
+
+        .monster-dropdown {
+            width: 100%;
+            padding: 15px;
+            font-family: 'MedievalSharp', cursive;
+            font-size: 1.1rem;
+            border: 3px solid #8b4513;
+            border-radius: 5px;
+            background: var(--parchment);
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .monster-dropdown:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 10px rgba(201, 162, 39, 0.5);
+        }
+
+        /* Stat Block */
+        .stat-block {
+            background: var(--parchment);
+            border: 2px solid #8b4513;
+            border-radius: 5px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .stat-block::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(to right, var(--blood-red), var(--gold), var(--blood-red));
+        }
+
+        .stat-block::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(to right, var(--blood-red), var(--gold), var(--blood-red));
+        }
+
+        .monster-name {
+            font-family: 'Cinzel Decorative', cursive;
+            font-size: 1.8rem;
+            color: var(--blood-red);
+            margin-bottom: 5px;
+        }
+
+        .monster-type {
+            font-style: italic;
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 0.95rem;
+        }
+
+        .stat-line {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(139, 69, 19, 0.3);
+        }
+
+        .stat-label {
+            font-weight: bold;
+            color: var(--blood-red);
+        }
+
+        .ability-scores {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .ability-score {
+            background: linear-gradient(to bottom, #fff, var(--parchment-dark));
+            border: 2px solid #8b4513;
+            border-radius: 5px;
+            padding: 10px 5px;
+        }
+
+        .ability-name {
+            font-weight: bold;
+            font-size: 0.8rem;
+            color: var(--blood-red);
+        }
+
+        .ability-value {
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        .ability-mod {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .section-title {
+            font-family: 'Cinzel', serif;
+            font-size: 1.1rem;
+            color: var(--blood-red);
+            border-bottom: 2px solid var(--blood-red);
+            margin: 15px 0 10px;
+            padding-bottom: 5px;
+        }
+
+        .trait {
+            margin-bottom: 10px;
+        }
+
+        .trait-name {
+            font-weight: bold;
+            font-style: italic;
+        }
+
+        /* VS Divider */
+        .vs-divider {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .vs-text {
+            font-family: 'Cinzel Decorative', cursive;
+            font-size: 3rem;
+            color: var(--gold);
+            text-shadow:
+                3px 3px 6px #000,
+                0 0 30px rgba(201, 162, 39, 0.8);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .fight-btn {
+            margin-top: 30px;
+            padding: 20px 60px;
+            font-family: 'Cinzel Decorative', cursive;
+            font-size: 1.5rem;
+            background: linear-gradient(to bottom, var(--blood-red), #5c0000);
+            color: var(--gold);
+            border: 3px solid var(--gold);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-shadow: 2px 2px 4px #000;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .fight-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(139, 0, 0, 0.6);
+            background: linear-gradient(to bottom, #a00000, #6c0000);
+        }
+
+        .fight-btn:active {
+            transform: translateY(0);
+        }
+
+        .fight-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Battle Arena */
+        .battle-arena {
+            display: none;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .arena-title {
+            font-family: 'Cinzel Decorative', cursive;
+            font-size: 2rem;
+            text-align: center;
+            color: var(--blood-red);
+            margin-bottom: 30px;
+        }
+
+        .combatants {
+            display: grid;
+            grid-template-columns: 1fr 100px 1fr;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .combatant {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            border: 3px solid #8b4513;
+            transition: all 0.3s;
+        }
+
+        .combatant.active {
+            border-color: var(--gold);
+            box-shadow: 0 0 30px rgba(201, 162, 39, 0.5);
+        }
+
+        .combatant.attacking {
+            animation: attack-shake 0.5s ease-in-out;
+        }
+
+        @keyframes attack-shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(20px); }
+            75% { transform: translateX(-20px); }
+        }
+
+        .combatant.hit {
+            animation: hit-flash 0.3s ease-in-out;
+        }
+
+        @keyframes hit-flash {
+            0%, 100% { background: rgba(255, 255, 255, 0.5); }
+            50% { background: rgba(255, 0, 0, 0.5); }
+        }
+
+        .combatant-name {
+            font-family: 'Cinzel Decorative', cursive;
+            font-size: 1.5rem;
+            color: var(--blood-red);
+            margin-bottom: 15px;
+        }
+
+        .combatant-portrait {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 15px;
+            background: linear-gradient(135deg, #2d1f1f, #1a0a0a);
+            border: 4px solid var(--gold);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+        }
+
+        .health-bar-container {
+            width: 100%;
+            height: 30px;
+            background: #333;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 2px solid #8b4513;
+            position: relative;
+        }
+
+        .health-bar {
+            height: 100%;
+            background: linear-gradient(to bottom, #4CAF50, #2d5a30);
+            transition: width 0.5s ease-out;
+            position: relative;
+        }
+
+        .health-bar.low {
+            background: linear-gradient(to bottom, #ff9800, #b36b00);
+        }
+
+        .health-bar.critical {
+            background: linear-gradient(to bottom, #f44336, #a02a2a);
+            animation: critical-pulse 1s infinite;
+        }
+
+        @keyframes critical-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .health-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px #000;
+            z-index: 1;
+        }
+
+        .arena-vs {
+            font-family: 'Cinzel Decorative', cursive;
+            font-size: 2rem;
+            color: var(--gold);
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        /* Combat Log */
+        .combat-log {
+            padding: 25px;
+            border-radius: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .log-title {
+            font-family: 'Cinzel Decorative', cursive;
+            font-size: 1.5rem;
+            color: var(--blood-red);
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 2px solid var(--gold);
+            padding-bottom: 10px;
+        }
+
+        .log-entry {
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #8b4513;
+            background: rgba(255, 255, 255, 0.5);
+            animation: slide-in 0.3s ease-out;
+        }
+
+        @keyframes slide-in {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .log-entry.initiative { border-left-color: var(--gold); }
+        .log-entry.attack { border-left-color: var(--blood-red); }
+        .log-entry.damage { border-left-color: #ff6600; }
+        .log-entry.miss { border-left-color: #666; }
+        .log-entry.critical { border-left-color: #ff00ff; background: rgba(255, 0, 255, 0.1); }
+        .log-entry.ability { border-left-color: #00ccff; background: rgba(0, 204, 255, 0.1); }
+        .log-entry.legendary { border-left-color: var(--gold); background: rgba(201, 162, 39, 0.2); }
+        .log-entry.death { border-left-color: #000; background: rgba(0, 0, 0, 0.2); }
+        .log-entry.victory {
+            border-left-color: var(--gold);
+            background: linear-gradient(to right, rgba(201, 162, 39, 0.3), transparent);
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .log-round {
+            font-family: 'Cinzel', serif;
+            font-weight: bold;
+            color: var(--blood-red);
+            text-align: center;
+            margin: 20px 0 10px;
+            font-size: 1.2rem;
+        }
+
+        .dice-roll {
+            display: inline-block;
+            background: var(--ink);
+            color: var(--gold);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 0 3px;
+        }
+
+        /* Damage Popup */
+        .damage-popup {
+            position: fixed;
+            font-family: 'Cinzel Decorative', cursive;
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--blood-red);
+            text-shadow: 2px 2px 4px #000;
+            pointer-events: none;
+            animation: damage-float 1s ease-out forwards;
+            z-index: 1000;
+        }
+
+        .damage-popup.heal {
+            color: #4CAF50;
+        }
+
+        .damage-popup.critical {
+            color: #ff00ff;
+            font-size: 2.5rem;
+        }
+
+        @keyframes damage-float {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-50px) scale(1.5);
+            }
+        }
+
+        /* Victory Screen */
+        .victory-screen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            animation: fade-in 0.5s ease-out;
+        }
+
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .victory-content {
+            text-align: center;
+            padding: 50px;
+            background: var(--parchment);
+            border: 8px solid var(--gold);
+            border-radius: 20px;
+            box-shadow: 0 0 50px rgba(201, 162, 39, 0.5);
+        }
+
+        .victory-title {
+            font-family: 'Cinzel Decorative', cursive;
+            font-size: 3rem;
+            color: var(--gold);
+            text-shadow: 3px 3px 6px #000;
+            margin-bottom: 20px;
+        }
+
+        .victory-winner {
+            font-family: 'Cinzel Decorative', cursive;
+            font-size: 2rem;
+            color: var(--blood-red);
+            margin-bottom: 30px;
+        }
+
+        .victory-stats {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            color: var(--ink);
+        }
+
+        .play-again-btn {
+            padding: 15px 40px;
+            font-family: 'Cinzel', serif;
+            font-size: 1.2rem;
+            background: linear-gradient(to bottom, var(--gold), #8b6914);
+            color: var(--ink);
+            border: 3px solid #8b4513;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .play-again-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(201, 162, 39, 0.5);
+        }
+
+        /* Battle Controls */
+        .battle-controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .control-btn {
+            padding: 10px 30px;
+            font-family: 'Cinzel', serif;
+            font-size: 1rem;
+            margin: 0 10px;
+            background: linear-gradient(to bottom, #4a3728, #2d1f1f);
+            color: var(--parchment);
+            border: 2px solid var(--gold);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .control-btn:hover {
+            background: linear-gradient(to bottom, #5a4738, #3d2f2f);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .speed-control {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: 20px;
+            color: var(--parchment);
+            font-family: 'Cinzel', serif;
+        }
+
+        .speed-control input {
+            width: 100px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1000px) {
+            .selection-phase {
+                grid-template-columns: 1fr;
+            }
+
+            .vs-divider {
+                padding: 20px 0;
+            }
+
+            .combatants {
+                grid-template-columns: 1fr;
+            }
+
+            .arena-vs {
+                margin: 20px 0;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--parchment-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #8b4513;
+            border-radius: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a0522d;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>D&D <span>Monster</span> Battle</h1>
+        <p class="subtitle">⚔ ARENA OF LEGENDS ⚔</p>
+    </header>
+
+    <div class="container">
+        <!-- Selection Phase -->
+        <div class="selection-phase" id="selectionPhase">
+            <div class="monster-select-panel parchment">
+                <h2 class="panel-title red">🔴 Red Corner</h2>
+                <select class="monster-dropdown" id="monster1Select" onchange="updateStatBlock(1)">
+                    <option value="">-- Select Champion --</option>
+                </select>
+                <div class="stat-block" id="statBlock1">
+                    <p style="text-align: center; color: #666; padding: 50px 0;">Select a monster to view stats</p>
+                </div>
+            </div>
+
+            <div class="vs-divider">
+                <div class="vs-text">VS</div>
+                <button class="fight-btn" id="fightBtn" onclick="startBattle()" disabled>
+                    ⚔ FIGHT! ⚔
+                </button>
+            </div>
+
+            <div class="monster-select-panel parchment">
+                <h2 class="panel-title blue">🔵 Blue Corner</h2>
+                <select class="monster-dropdown" id="monster2Select" onchange="updateStatBlock(2)">
+                    <option value="">-- Select Champion --</option>
+                </select>
+                <div class="stat-block" id="statBlock2">
+                    <p style="text-align: center; color: #666; padding: 50px 0;">Select a monster to view stats</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Battle Arena -->
+        <div class="battle-arena parchment" id="battleArena">
+            <h2 class="arena-title">⚔ BATTLE IN PROGRESS ⚔</h2>
+
+            <div class="combatants">
+                <div class="combatant" id="combatant1">
+                    <div class="combatant-name" id="combatantName1">Monster 1</div>
+                    <div class="combatant-portrait" id="portrait1">🐉</div>
+                    <div class="health-bar-container">
+                        <div class="health-bar" id="healthBar1"></div>
+                        <div class="health-text" id="healthText1">100/100</div>
+                    </div>
+                </div>
+
+                <div class="arena-vs">⚔</div>
+
+                <div class="combatant" id="combatant2">
+                    <div class="combatant-name" id="combatantName2">Monster 2</div>
+                    <div class="combatant-portrait" id="portrait2">👁</div>
+                    <div class="health-bar-container">
+                        <div class="health-bar" id="healthBar2"></div>
+                        <div class="health-text" id="healthText2">100/100</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="battle-controls">
+                <button class="control-btn" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
+                <button class="control-btn" onclick="skipToEnd()">⏭ Skip to End</button>
+                <button class="control-btn" onclick="resetBattle()">🔄 New Battle</button>
+                <span class="speed-control">
+                    Speed: <input type="range" id="speedSlider" min="1" max="10" value="5" onchange="updateSpeed()">
+                </span>
+            </div>
+        </div>
+
+        <!-- Combat Log -->
+        <div class="combat-log parchment" id="combatLog">
+            <h2 class="log-title">📜 Combat Log</h2>
+            <div id="logContent"></div>
+        </div>
+    </div>
+
+    <!-- Victory Screen -->
+    <div class="victory-screen" id="victoryScreen">
+        <div class="victory-content">
+            <h2 class="victory-title">🏆 VICTORY! 🏆</h2>
+            <p class="victory-winner" id="victoryWinner">Winner Name</p>
+            <div class="victory-stats" id="victoryStats"></div>
+            <button class="play-again-btn" onclick="resetBattle()">⚔ Battle Again ⚔</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // D&D MONSTER DATABASE
+        // ============================================
+        const monsters = {
+            // LEGENDARY CREATURES
+            "ancient-red-dragon": {
+                name: "Ancient Red Dragon",
+                size: "Gargantuan",
+                type: "Dragon",
+                alignment: "Chaotic Evil",
+                cr: 24,
+                ac: 22,
+                hp: 546,
+                speed: "40 ft., climb 40 ft., fly 80 ft.",
+                icon: "🐉",
+                abilities: { str: 30, dex: 10, con: 29, int: 18, wis: 15, cha: 23 },
+                savingThrows: { dex: 7, con: 16, wis: 9, cha: 13 },
+                damageImmunities: ["fire"],
+                senses: "blindsight 60 ft., darkvision 120 ft.",
+                languages: "Common, Draconic",
+                traits: [
+                    { name: "Legendary Resistance (3/Day)", desc: "If the dragon fails a saving throw, it can choose to succeed instead." },
+                    { name: "Fire Aura", desc: "At the start of each of the dragon's turns, each creature within 10 feet takes 10 fire damage." }
+                ],
+                attacks: [
+                    { name: "Bite", toHit: 17, damage: "2d10+10", damageType: "piercing", extra: "2d6 fire" },
+                    { name: "Claw", toHit: 17, damage: "2d6+10", damageType: "slashing" },
+                    { name: "Tail", toHit: 17, damage: "2d8+10", damageType: "bludgeoning" }
+                ],
+                multiattack: { desc: "Bite and two claws", attacks: ["Bite", "Claw", "Claw"] },
+                specialAbilities: [
+                    {
+                        name: "Fire Breath",
+                        recharge: [5, 6],
+                        recharged: true,
+                        save: { type: "dex", dc: 24 },
+                        damage: "26d6",
+                        damageType: "fire",
+                        halfOnSave: true,
+                        desc: "90-foot cone of fire"
+                    }
+                ],
+                legendaryActions: 3,
+                legendaryActionsList: [
+                    { name: "Detect", cost: 1, desc: "Makes a Wisdom (Perception) check." },
+                    { name: "Tail Attack", cost: 1, attack: "Tail" },
+                    { name: "Wing Attack", cost: 2, damage: "2d6+10", damageType: "bludgeoning", save: { type: "dex", dc: 25 }, desc: "15-foot radius" }
+                ]
+            },
+
+            "tarrasque": {
+                name: "Tarrasque",
+                size: "Gargantuan",
+                type: "Monstrosity (Titan)",
+                alignment: "Unaligned",
+                cr: 30,
+                ac: 25,
+                hp: 676,
+                speed: "40 ft.",
+                icon: "🦖",
+                abilities: { str: 30, dex: 11, con: 30, int: 3, wis: 11, cha: 11 },
+                savingThrows: { int: 5, wis: 9, cha: 9 },
+                damageImmunities: ["fire", "poison"],
+                conditionImmunities: ["charmed", "frightened", "paralyzed", "poisoned"],
+                senses: "blindsight 120 ft.",
+                traits: [
+                    { name: "Legendary Resistance (3/Day)", desc: "If the tarrasque fails a saving throw, it can choose to succeed instead." },
+                    { name: "Magic Resistance", desc: "Advantage on saving throws against spells and magical effects." },
+                    { name: "Reflective Carapace", desc: "Reflects line spells and magic missile back at caster." },
+                    { name: "Siege Monster", desc: "Deals double damage to objects and structures." }
+                ],
+                attacks: [
+                    { name: "Bite", toHit: 19, damage: "4d12+10", damageType: "piercing", extra: "grapple (escape DC 20)" },
+                    { name: "Claw", toHit: 19, damage: "4d8+10", damageType: "slashing" },
+                    { name: "Horns", toHit: 19, damage: "4d10+10", damageType: "piercing" },
+                    { name: "Tail", toHit: 19, damage: "4d6+10", damageType: "bludgeoning" }
+                ],
+                multiattack: { desc: "Frightful Presence, then five attacks", attacks: ["Bite", "Claw", "Claw", "Horns", "Tail"] },
+                specialAbilities: [
+                    {
+                        name: "Frightful Presence",
+                        save: { type: "wis", dc: 17 },
+                        desc: "Each creature within 120 feet must succeed or be frightened for 1 minute",
+                        noDirectDamage: true
+                    },
+                    {
+                        name: "Swallow",
+                        desc: "If grappling, can swallow Medium or smaller creature",
+                        damage: "16d6",
+                        damageType: "acid",
+                        special: true
+                    }
+                ],
+                legendaryActions: 3,
+                legendaryActionsList: [
+                    { name: "Attack", cost: 1, desc: "Makes one claw or tail attack.", attack: "Claw" },
+                    { name: "Move", cost: 1, desc: "Moves up to half its speed." },
+                    { name: "Chomp", cost: 2, attack: "Bite" }
+                ]
+            },
+
+            "beholder": {
+                name: "Beholder",
+                size: "Large",
+                type: "Aberration",
+                alignment: "Lawful Evil",
+                cr: 13,
+                ac: 18,
+                hp: 180,
+                speed: "0 ft., fly 20 ft. (hover)",
+                icon: "👁",
+                abilities: { str: 10, dex: 14, con: 18, int: 17, wis: 15, cha: 17 },
+                savingThrows: { int: 8, wis: 7, cha: 8 },
+                conditionImmunities: ["prone"],
+                senses: "darkvision 120 ft.",
+                languages: "Deep Speech, Undercommon",
+                traits: [
+                    { name: "Antimagic Cone", desc: "The beholder's central eye creates an area of antimagic in a 150-foot cone." }
+                ],
+                attacks: [
+                    { name: "Bite", toHit: 5, damage: "4d6", damageType: "piercing" }
+                ],
+                specialAbilities: [
+                    { name: "Charm Ray", save: { type: "wis", dc: 16 }, desc: "Charmed for 1 hour", noDirectDamage: true, eyeRay: true },
+                    { name: "Paralyzing Ray", save: { type: "con", dc: 16 }, desc: "Paralyzed for 1 minute", noDirectDamage: true, eyeRay: true },
+                    { name: "Fear Ray", save: { type: "wis", dc: 16 }, desc: "Frightened for 1 minute", noDirectDamage: true, eyeRay: true },
+                    { name: "Slowing Ray", save: { type: "dex", dc: 16 }, desc: "Speed halved for 1 minute", noDirectDamage: true, eyeRay: true },
+                    { name: "Enervation Ray", save: { type: "con", dc: 16 }, damage: "8d8", damageType: "necrotic", halfOnSave: true, eyeRay: true },
+                    { name: "Telekinetic Ray", save: { type: "str", dc: 16 }, desc: "Move target 30 feet", noDirectDamage: true, eyeRay: true },
+                    { name: "Sleep Ray", save: { type: "wis", dc: 16 }, desc: "Falls asleep for 1 minute", noDirectDamage: true, eyeRay: true },
+                    { name: "Petrification Ray", save: { type: "dex", dc: 16 }, desc: "Begins turning to stone", noDirectDamage: true, eyeRay: true },
+                    { name: "Disintegration Ray", save: { type: "dex", dc: 16 }, damage: "10d8", damageType: "force", eyeRay: true },
+                    { name: "Death Ray", save: { type: "dex", dc: 16 }, damage: "10d10", damageType: "necrotic", eyeRay: true }
+                ],
+                eyeRays: 3,
+                legendaryActions: 3,
+                legendaryActionsList: [
+                    { name: "Eye Ray", cost: 1, desc: "Uses one random eye ray." }
+                ]
+            },
+
+            "lich": {
+                name: "Lich",
+                size: "Medium",
+                type: "Undead",
+                alignment: "Any Evil",
+                cr: 21,
+                ac: 17,
+                hp: 135,
+                speed: "30 ft.",
+                icon: "💀",
+                abilities: { str: 11, dex: 16, con: 16, int: 20, wis: 14, cha: 16 },
+                savingThrows: { con: 10, int: 12, wis: 9 },
+                damageResistances: ["cold", "lightning", "necrotic"],
+                damageImmunities: ["poison"],
+                conditionImmunities: ["charmed", "exhaustion", "frightened", "paralyzed", "poisoned"],
+                senses: "truesight 120 ft.",
+                languages: "Common plus up to five others",
+                traits: [
+                    { name: "Legendary Resistance (3/Day)", desc: "If the lich fails a saving throw, it can choose to succeed instead." },
+                    { name: "Rejuvenation", desc: "If it has a phylactery, a destroyed lich gains a new body in 1d10 days." },
+                    { name: "Turn Resistance", desc: "Advantage on saving throws against effects that turn undead." }
+                ],
+                attacks: [
+                    { name: "Paralyzing Touch", toHit: 12, damage: "3d6", damageType: "cold", extra: "DC 18 CON save or paralyzed" }
+                ],
+                spellcasting: {
+                    level: 18,
+                    dc: 20,
+                    slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 1, 7: 1, 8: 1, 9: 1 },
+                    spells: [
+                        { name: "Power Word Kill", level: 9, damage: "100", damageType: "death", instant: true, desc: "If target has 100 HP or less, it dies" },
+                        { name: "Finger of Death", level: 7, damage: "7d8+30", damageType: "necrotic", save: { type: "con", dc: 20 }, halfOnSave: true },
+                        { name: "Disintegrate", level: 6, damage: "10d6+40", damageType: "force", save: { type: "dex", dc: 20 } },
+                        { name: "Cloudkill", level: 5, damage: "5d8", damageType: "poison", save: { type: "con", dc: 20 }, halfOnSave: true },
+                        { name: "Blight", level: 4, damage: "8d8", damageType: "necrotic", save: { type: "con", dc: 20 }, halfOnSave: true },
+                        { name: "Fireball", level: 3, damage: "8d6", damageType: "fire", save: { type: "dex", dc: 20 }, halfOnSave: true },
+                        { name: "Magic Missile", level: 1, damage: "3d4+3", damageType: "force", autoHit: true }
+                    ]
+                },
+                legendaryActions: 3,
+                legendaryActionsList: [
+                    { name: "Cantrip", cost: 1, desc: "Casts a cantrip.", damage: "3d8", damageType: "necrotic" },
+                    { name: "Paralyzing Touch", cost: 2, attack: "Paralyzing Touch" },
+                    { name: "Frightening Gaze", cost: 2, save: { type: "wis", dc: 18 }, desc: "Target frightened until end of lich's next turn" },
+                    { name: "Disrupt Life", cost: 3, damage: "6d6", damageType: "necrotic", save: { type: "con", dc: 18 }, desc: "Each non-undead within 20 feet", aoe: true }
+                ]
+            },
+
+            "mind-flayer": {
+                name: "Mind Flayer",
+                size: "Medium",
+                type: "Aberration",
+                alignment: "Lawful Evil",
+                cr: 7,
+                ac: 15,
+                hp: 71,
+                speed: "30 ft.",
+                icon: "🦑",
+                abilities: { str: 11, dex: 12, con: 12, int: 19, wis: 17, cha: 17 },
+                savingThrows: { int: 7, wis: 6, cha: 6 },
+                senses: "darkvision 120 ft.",
+                languages: "Deep Speech, Undercommon, telepathy 120 ft.",
+                traits: [
+                    { name: "Magic Resistance", desc: "Advantage on saving throws against spells and magical effects." }
+                ],
+                attacks: [
+                    { name: "Tentacles", toHit: 7, damage: "2d10+4", damageType: "psychic", extra: "grapple (escape DC 15)" }
+                ],
+                specialAbilities: [
+                    {
+                        name: "Mind Blast",
+                        recharge: [5, 6],
+                        recharged: true,
+                        save: { type: "int", dc: 15 },
+                        damage: "4d8+4",
+                        damageType: "psychic",
+                        desc: "60-foot cone, stunned for 1 minute on fail"
+                    },
+                    {
+                        name: "Extract Brain",
+                        desc: "Against incapacitated humanoid grappled by tentacles",
+                        damage: "10d10",
+                        damageType: "piercing",
+                        special: true,
+                        instant: true
+                    }
+                ],
+                innateSpellcasting: {
+                    dc: 15,
+                    spells: [
+                        { name: "Dominate Monster", damage: "0", desc: "Charm one creature", noDirectDamage: true },
+                        { name: "Plane Shift", damage: "0", desc: "Self only", noDirectDamage: true }
+                    ]
+                }
+            },
+
+            "pit-fiend": {
+                name: "Pit Fiend",
+                size: "Large",
+                type: "Fiend (Devil)",
+                alignment: "Lawful Evil",
+                cr: 20,
+                ac: 19,
+                hp: 300,
+                speed: "30 ft., fly 60 ft.",
+                icon: "👿",
+                abilities: { str: 26, dex: 14, con: 24, int: 22, wis: 18, cha: 24 },
+                savingThrows: { dex: 8, con: 13, wis: 10 },
+                damageResistances: ["cold"],
+                damageImmunities: ["fire", "poison"],
+                conditionImmunities: ["poisoned"],
+                senses: "truesight 120 ft.",
+                languages: "Infernal, telepathy 120 ft.",
+                traits: [
+                    { name: "Fear Aura", desc: "Creatures within 20 feet must make DC 21 WIS save or be frightened." },
+                    { name: "Magic Resistance", desc: "Advantage on saving throws against spells and magical effects." },
+                    { name: "Magic Weapons", desc: "Weapon attacks are magical." }
+                ],
+                attacks: [
+                    { name: "Bite", toHit: 14, damage: "4d6+8", damageType: "piercing", extra: "6d6 poison (DC 21 CON half)" },
+                    { name: "Claw", toHit: 14, damage: "2d8+8", damageType: "slashing" },
+                    { name: "Mace", toHit: 14, damage: "2d6+8", damageType: "bludgeoning", extra: "6d6 fire" },
+                    { name: "Tail", toHit: 14, damage: "3d10+8", damageType: "bludgeoning" }
+                ],
+                multiattack: { desc: "Four attacks: bite, claw, mace, and tail", attacks: ["Bite", "Claw", "Mace", "Tail"] },
+                specialAbilities: [
+                    {
+                        name: "Fireball",
+                        save: { type: "dex", dc: 21 },
+                        damage: "10d6",
+                        damageType: "fire",
+                        halfOnSave: true,
+                        desc: "At will"
+                    }
+                ]
+            },
+
+            "balor": {
+                name: "Balor",
+                size: "Huge",
+                type: "Fiend (Demon)",
+                alignment: "Chaotic Evil",
+                cr: 19,
+                ac: 19,
+                hp: 262,
+                speed: "40 ft., fly 80 ft.",
+                icon: "🔥",
+                abilities: { str: 26, dex: 15, con: 22, int: 20, wis: 16, cha: 22 },
+                savingThrows: { str: 14, con: 12, wis: 9, cha: 12 },
+                damageResistances: ["cold", "lightning"],
+                damageImmunities: ["fire", "poison"],
+                conditionImmunities: ["poisoned"],
+                senses: "truesight 120 ft.",
+                languages: "Abyssal, telepathy 120 ft.",
+                traits: [
+                    { name: "Death Throes", desc: "When the balor dies, it explodes. Each creature within 30 feet takes 20d6 fire damage (DC 20 DEX half)." },
+                    { name: "Fire Aura", desc: "At the start of each turn, creatures within 5 feet take 3d6 fire damage. Flammables ignite." },
+                    { name: "Magic Resistance", desc: "Advantage on saving throws against spells." },
+                    { name: "Magic Weapons", desc: "Weapon attacks are magical." }
+                ],
+                attacks: [
+                    { name: "Longsword", toHit: 14, damage: "3d8+8", damageType: "slashing", extra: "3d8 lightning" },
+                    { name: "Whip", toHit: 14, damage: "2d6+8", damageType: "slashing", extra: "3d6 fire, pull 25 ft." }
+                ],
+                multiattack: { desc: "Longsword and whip", attacks: ["Longsword", "Whip"] },
+                specialAbilities: [
+                    {
+                        name: "Fire Aura Damage",
+                        autoTrigger: true,
+                        damage: "3d6",
+                        damageType: "fire",
+                        desc: "Creatures within 5 feet take fire damage at start of balor's turn"
+                    }
+                ]
+            },
+
+            "kraken": {
+                name: "Kraken",
+                size: "Gargantuan",
+                type: "Monstrosity (Titan)",
+                alignment: "Chaotic Evil",
+                cr: 23,
+                ac: 18,
+                hp: 472,
+                speed: "20 ft., swim 60 ft.",
+                icon: "🐙",
+                abilities: { str: 30, dex: 11, con: 25, int: 22, wis: 18, cha: 20 },
+                savingThrows: { str: 17, dex: 7, con: 14, int: 13, wis: 11 },
+                damageImmunities: ["lightning"],
+                conditionImmunities: ["frightened", "paralyzed"],
+                senses: "truesight 120 ft.",
+                languages: "understands all but can't speak, telepathy 120 ft.",
+                traits: [
+                    { name: "Siege Monster", desc: "Deals double damage to objects and structures." },
+                    { name: "Freedom of Movement", desc: "Ignores difficult terrain and can't be restrained." }
+                ],
+                attacks: [
+                    { name: "Bite", toHit: 17, damage: "3d8+10", damageType: "piercing" },
+                    { name: "Tentacle", toHit: 17, damage: "3d6+10", damageType: "bludgeoning", extra: "grapple (escape DC 18)" }
+                ],
+                multiattack: { desc: "Three tentacle attacks", attacks: ["Tentacle", "Tentacle", "Tentacle"] },
+                specialAbilities: [
+                    {
+                        name: "Lightning Storm",
+                        recharge: [5, 6],
+                        recharged: true,
+                        save: { type: "dex", dc: 23 },
+                        damage: "22d6",
+                        damageType: "lightning",
+                        halfOnSave: true,
+                        desc: "Creates bolts of lightning in 120-foot radius"
+                    },
+                    {
+                        name: "Ink Cloud",
+                        desc: "Creates 60-foot-radius sphere of ink (underwater only)",
+                        noDirectDamage: true
+                    }
+                ],
+                legendaryActions: 3,
+                legendaryActionsList: [
+                    { name: "Tentacle Attack", cost: 1, attack: "Tentacle" },
+                    { name: "Fling", cost: 1, desc: "Throws a grappled creature up to 60 feet.", damage: "3d6+10", damageType: "bludgeoning" },
+                    { name: "Lightning Storm", cost: 2, desc: "Uses Lightning Storm if recharged." }
+                ]
+            },
+
+            "adult-black-dragon": {
+                name: "Adult Black Dragon",
+                size: "Huge",
+                type: "Dragon",
+                alignment: "Chaotic Evil",
+                cr: 14,
+                ac: 19,
+                hp: 195,
+                speed: "40 ft., fly 80 ft., swim 40 ft.",
+                icon: "🐲",
+                abilities: { str: 23, dex: 14, con: 21, int: 14, wis: 13, cha: 17 },
+                savingThrows: { dex: 7, con: 10, wis: 6, cha: 8 },
+                damageImmunities: ["acid"],
+                senses: "blindsight 60 ft., darkvision 120 ft.",
+                languages: "Common, Draconic",
+                traits: [
+                    { name: "Amphibious", desc: "Can breathe air and water." },
+                    { name: "Legendary Resistance (3/Day)", desc: "If the dragon fails a saving throw, it can choose to succeed instead." }
+                ],
+                attacks: [
+                    { name: "Bite", toHit: 11, damage: "2d10+6", damageType: "piercing", extra: "1d8 acid" },
+                    { name: "Claw", toHit: 11, damage: "2d6+6", damageType: "slashing" },
+                    { name: "Tail", toHit: 11, damage: "2d8+6", damageType: "bludgeoning" }
+                ],
+                multiattack: { desc: "Bite and two claws", attacks: ["Bite", "Claw", "Claw"] },
+                specialAbilities: [
+                    {
+                        name: "Acid Breath",
+                        recharge: [5, 6],
+                        recharged: true,
+                        save: { type: "dex", dc: 18 },
+                        damage: "12d8",
+                        damageType: "acid",
+                        halfOnSave: true,
+                        desc: "60-foot line of acid"
+                    }
+                ],
+                legendaryActions: 3,
+                legendaryActionsList: [
+                    { name: "Detect", cost: 1, desc: "Makes a Wisdom (Perception) check." },
+                    { name: "Tail Attack", cost: 1, attack: "Tail" },
+                    { name: "Wing Attack", cost: 2, damage: "2d6+6", damageType: "bludgeoning", save: { type: "dex", dc: 19 }, desc: "10-foot radius" }
+                ]
+            },
+
+            "death-knight": {
+                name: "Death Knight",
+                size: "Medium",
+                type: "Undead",
+                alignment: "Chaotic Evil",
+                cr: 17,
+                ac: 20,
+                hp: 180,
+                speed: "30 ft.",
+                icon: "⚔️",
+                abilities: { str: 20, dex: 11, con: 20, int: 12, wis: 16, cha: 18 },
+                savingThrows: { dex: 6, wis: 9, cha: 10 },
+                damageImmunities: ["necrotic", "poison"],
+                conditionImmunities: ["exhaustion", "frightened", "poisoned"],
+                senses: "darkvision 120 ft.",
+                languages: "Abyssal, Common",
+                traits: [
+                    { name: "Magic Resistance", desc: "Advantage on saving throws against spells and magical effects." },
+                    { name: "Marshal Undead", desc: "Undead allies within 60 feet have advantage on saving throws." }
+                ],
+                attacks: [
+                    { name: "Longsword", toHit: 11, damage: "1d8+5", damageType: "slashing", extra: "4d8 necrotic" }
+                ],
+                multiattack: { desc: "Three longsword attacks", attacks: ["Longsword", "Longsword", "Longsword"] },
+                specialAbilities: [
+                    {
+                        name: "Hellfire Orb",
+                        recharge: [6],
+                        recharged: true,
+                        save: { type: "dex", dc: 18 },
+                        damage: "10d6",
+                        damageType: "fire",
+                        extra: "10d6 necrotic",
+                        halfOnSave: true,
+                        desc: "20-foot-radius explosion"
+                    }
+                ],
+                spellcasting: {
+                    level: 19,
+                    dc: 18,
+                    slots: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 },
+                    spells: [
+                        { name: "Destructive Wave", level: 5, damage: "5d6", damageType: "necrotic", extra: "5d6 thunder", save: { type: "con", dc: 18 }, halfOnSave: true },
+                        { name: "Banishing Smite", level: 5, damage: "5d10", damageType: "force" },
+                        { name: "Staggering Smite", level: 4, damage: "4d6", damageType: "psychic" }
+                    ]
+                }
+            },
+
+            "vampire": {
+                name: "Vampire",
+                size: "Medium",
+                type: "Undead (Shapechanger)",
+                alignment: "Lawful Evil",
+                cr: 13,
+                ac: 16,
+                hp: 144,
+                speed: "30 ft.",
+                icon: "🧛",
+                abilities: { str: 18, dex: 18, con: 18, int: 17, wis: 15, cha: 18 },
+                savingThrows: { dex: 9, wis: 7, cha: 9 },
+                damageResistances: ["necrotic"],
+                senses: "darkvision 120 ft.",
+                languages: "the languages it knew in life",
+                traits: [
+                    { name: "Shapechanger", desc: "Can transform into a bat, mist, or its true form." },
+                    { name: "Legendary Resistance (3/Day)", desc: "If the vampire fails a saving throw, it can choose to succeed instead." },
+                    { name: "Regeneration", desc: "Regains 20 hit points at the start of its turn if it has at least 1 HP." },
+                    { name: "Spider Climb", desc: "Can climb difficult surfaces including ceilings." }
+                ],
+                attacks: [
+                    { name: "Unarmed Strike", toHit: 9, damage: "1d8+4", damageType: "bludgeoning", extra: "grapple (escape DC 18)" },
+                    { name: "Bite", toHit: 9, damage: "1d6+4", damageType: "piercing", extra: "3d6 necrotic, reduce max HP" }
+                ],
+                multiattack: { desc: "Two unarmed strikes, can replace one with bite", attacks: ["Unarmed Strike", "Unarmed Strike"] },
+                specialAbilities: [
+                    {
+                        name: "Charm",
+                        save: { type: "wis", dc: 17 },
+                        desc: "Target charmed for 24 hours",
+                        noDirectDamage: true
+                    },
+                    {
+                        name: "Children of the Night",
+                        desc: "Summons 2d4 swarms of bats or rats, or 3d6 wolves",
+                        noDirectDamage: true
+                    }
+                ],
+                regeneration: 20,
+                legendaryActions: 3,
+                legendaryActionsList: [
+                    { name: "Move", cost: 1, desc: "Moves up to its speed without provoking opportunity attacks." },
+                    { name: "Unarmed Strike", cost: 1, attack: "Unarmed Strike" },
+                    { name: "Bite", cost: 2, attack: "Bite" }
+                ]
+            },
+
+            "iron-golem": {
+                name: "Iron Golem",
+                size: "Large",
+                type: "Construct",
+                alignment: "Unaligned",
+                cr: 16,
+                ac: 20,
+                hp: 210,
+                speed: "30 ft.",
+                icon: "🤖",
+                abilities: { str: 24, dex: 9, con: 20, int: 3, wis: 11, cha: 1 },
+                damageImmunities: ["fire", "poison", "psychic"],
+                conditionImmunities: ["charmed", "exhaustion", "frightened", "paralyzed", "petrified", "poisoned"],
+                senses: "darkvision 120 ft.",
+                languages: "understands creator's languages",
+                traits: [
+                    { name: "Fire Absorption", desc: "Whenever subjected to fire damage, takes no damage and instead regains HP equal to the fire damage dealt." },
+                    { name: "Immutable Form", desc: "Immune to any spell or effect that would alter its form." },
+                    { name: "Magic Resistance", desc: "Advantage on saving throws against spells and magical effects." },
+                    { name: "Magic Weapons", desc: "Weapon attacks are magical." }
+                ],
+                attacks: [
+                    { name: "Slam", toHit: 13, damage: "3d8+7", damageType: "bludgeoning" },
+                    { name: "Sword", toHit: 13, damage: "3d10+7", damageType: "slashing" }
+                ],
+                multiattack: { desc: "Two melee attacks", attacks: ["Slam", "Sword"] },
+                specialAbilities: [
+                    {
+                        name: "Poison Breath",
+                        recharge: [5, 6],
+                        recharged: true,
+                        save: { type: "con", dc: 19 },
+                        damage: "10d8",
+                        damageType: "poison",
+                        halfOnSave: true,
+                        desc: "15-foot cone of poisonous gas"
+                    }
+                ],
+                fireAbsorption: true
+            },
+
+            "frost-giant": {
+                name: "Frost Giant",
+                size: "Huge",
+                type: "Giant",
+                alignment: "Neutral Evil",
+                cr: 8,
+                ac: 15,
+                hp: 138,
+                speed: "40 ft.",
+                icon: "❄️",
+                abilities: { str: 23, dex: 9, con: 21, int: 9, wis: 10, cha: 12 },
+                savingThrows: { con: 8, wis: 3, cha: 4 },
+                damageImmunities: ["cold"],
+                senses: "passive Perception 13",
+                languages: "Giant",
+                attacks: [
+                    { name: "Greataxe", toHit: 9, damage: "3d12+6", damageType: "slashing" },
+                    { name: "Rock", toHit: 9, damage: "4d10+6", damageType: "bludgeoning", range: "60/240 ft." }
+                ],
+                multiattack: { desc: "Two greataxe attacks", attacks: ["Greataxe", "Greataxe"] }
+            },
+
+            "purple-worm": {
+                name: "Purple Worm",
+                size: "Gargantuan",
+                type: "Monstrosity",
+                alignment: "Unaligned",
+                cr: 15,
+                ac: 18,
+                hp: 247,
+                speed: "50 ft., burrow 30 ft.",
+                icon: "🪱",
+                abilities: { str: 28, dex: 7, con: 22, int: 1, wis: 8, cha: 4 },
+                savingThrows: { con: 11, wis: 4 },
+                senses: "blindsight 30 ft., tremorsense 60 ft.",
+                traits: [
+                    { name: "Tunneler", desc: "Can burrow through solid rock, leaving a 10-foot-diameter tunnel." }
+                ],
+                attacks: [
+                    { name: "Bite", toHit: 14, damage: "3d8+9", damageType: "piercing", extra: "swallow on hit (DC 19 STR)" },
+                    { name: "Tail Stinger", toHit: 14, damage: "3d6+9", damageType: "piercing", extra: "DC 19 CON or 12d6 poison" }
+                ],
+                multiattack: { desc: "Bite and tail stinger", attacks: ["Bite", "Tail Stinger"] },
+                specialAbilities: [
+                    {
+                        name: "Swallow",
+                        desc: "If bite hits, can swallow Medium or smaller creature",
+                        damage: "6d6",
+                        damageType: "acid",
+                        special: true
+                    }
+                ]
+            },
+
+            "aboleth": {
+                name: "Aboleth",
+                size: "Large",
+                type: "Aberration",
+                alignment: "Lawful Evil",
+                cr: 10,
+                ac: 17,
+                hp: 135,
+                speed: "10 ft., swim 40 ft.",
+                icon: "🐟",
+                abilities: { str: 21, dex: 9, con: 15, int: 18, wis: 15, cha: 18 },
+                savingThrows: { con: 6, int: 8, wis: 6 },
+                senses: "darkvision 120 ft.",
+                languages: "Deep Speech, telepathy 120 ft.",
+                traits: [
+                    { name: "Amphibious", desc: "Can breathe air and water." },
+                    { name: "Mucous Cloud", desc: "Underwater, creatures within 5 feet must succeed DC 14 CON save or be diseased." },
+                    { name: "Probing Telepathy", desc: "Knows target's greatest desires when telepathically communicating." }
+                ],
+                attacks: [
+                    { name: "Tentacle", toHit: 9, damage: "2d6+5", damageType: "bludgeoning", extra: "DC 14 CON or diseased" }
+                ],
+                multiattack: { desc: "Three tentacle attacks", attacks: ["Tentacle", "Tentacle", "Tentacle"] },
+                specialAbilities: [
+                    {
+                        name: "Enslave",
+                        uses: 3,
+                        save: { type: "wis", dc: 14 },
+                        desc: "Charmed until aboleth dies or is on different plane",
+                        noDirectDamage: true
+                    },
+                    {
+                        name: "Psychic Drain",
+                        save: { type: "wis", dc: 14 },
+                        damage: "3d6",
+                        damageType: "psychic",
+                        desc: "Targets one creature within 60 feet"
+                    }
+                ],
+                legendaryActions: 3,
+                legendaryActionsList: [
+                    { name: "Detect", cost: 1, desc: "Makes a Wisdom (Perception) check." },
+                    { name: "Tail Swipe", cost: 1, damage: "2d6+5", damageType: "bludgeoning", save: { type: "dex", dc: 17 }, desc: "10-foot radius" },
+                    { name: "Psychic Drain", cost: 2, damage: "3d6", damageType: "psychic", save: { type: "wis", dc: 14 } }
+                ]
+            }
+        };
+
+        // ============================================
+        // COMBAT ENGINE
+        // ============================================
+
+        let battleState = {
+            monster1: null,
+            monster2: null,
+            combatants: [],
+            currentTurn: 0,
+            round: 1,
+            isPaused: false,
+            isRunning: false,
+            battleSpeed: 1000,
+            totalDamage1: 0,
+            totalDamage2: 0
+        };
+
+        // Dice rolling functions
+        function rollDice(notation) {
+            const match = notation.match(/(\d+)?d(\d+)([+-]\d+)?/);
+            if (!match) return parseInt(notation) || 0;
+
+            const count = parseInt(match[1]) || 1;
+            const sides = parseInt(match[2]);
+            const modifier = parseInt(match[3]) || 0;
+
+            let total = 0;
+            const rolls = [];
+            for (let i = 0; i < count; i++) {
+                const roll = Math.floor(Math.random() * sides) + 1;
+                rolls.push(roll);
+                total += roll;
+            }
+            return { total: total + modifier, rolls, modifier };
+        }
+
+        function rollD20() {
+            return Math.floor(Math.random() * 20) + 1;
+        }
+
+        function getModifier(score) {
+            return Math.floor((score - 10) / 2);
+        }
+
+        function formatModifier(mod) {
+            return mod >= 0 ? `+${mod}` : `${mod}`;
+        }
+
+        // Initialize monster dropdowns
+        function initializeMonsterSelects() {
+            const select1 = document.getElementById('monster1Select');
+            const select2 = document.getElementById('monster2Select');
+
+            Object.keys(monsters).forEach(key => {
+                const monster = monsters[key];
+                const option1 = document.createElement('option');
+                option1.value = key;
+                option1.textContent = `${monster.icon} ${monster.name} (CR ${monster.cr})`;
+                select1.appendChild(option1);
+
+                const option2 = document.createElement('option');
+                option2.value = key;
+                option2.textContent = `${monster.icon} ${monster.name} (CR ${monster.cr})`;
+                select2.appendChild(option2);
+            });
+        }
+
+        // Update stat block display
+        function updateStatBlock(num) {
+            const select = document.getElementById(`monster${num}Select`);
+            const block = document.getElementById(`statBlock${num}`);
+            const key = select.value;
+
+            if (!key) {
+                block.innerHTML = '<p style="text-align: center; color: #666; padding: 50px 0;">Select a monster to view stats</p>';
+                checkFightButton();
+                return;
+            }
+
+            const m = monsters[key];
+
+            block.innerHTML = `
+                <div class="monster-name">${m.icon} ${m.name}</div>
+                <div class="monster-type">${m.size} ${m.type}, ${m.alignment}</div>
+
+                <div class="stat-line">
+                    <span class="stat-label">Armor Class</span>
+                    <span>${m.ac}</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">Hit Points</span>
+                    <span>${m.hp}</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">Speed</span>
+                    <span>${m.speed}</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">Challenge</span>
+                    <span>${m.cr}</span>
+                </div>
+
+                <div class="ability-scores">
+                    ${Object.entries(m.abilities).map(([ability, score]) => `
+                        <div class="ability-score">
+                            <div class="ability-name">${ability.toUpperCase()}</div>
+                            <div class="ability-value">${score}</div>
+                            <div class="ability-mod">(${formatModifier(getModifier(score))})</div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                ${m.damageImmunities ? `<div class="stat-line"><span class="stat-label">Damage Immunities</span><span>${m.damageImmunities.join(', ')}</span></div>` : ''}
+                ${m.damageResistances ? `<div class="stat-line"><span class="stat-label">Damage Resistances</span><span>${m.damageResistances.join(', ')}</span></div>` : ''}
+                ${m.conditionImmunities ? `<div class="stat-line"><span class="stat-label">Condition Immunities</span><span>${m.conditionImmunities.join(', ')}</span></div>` : ''}
+
+                ${m.traits && m.traits.length > 0 ? `
+                    <div class="section-title">Traits</div>
+                    ${m.traits.map(t => `<div class="trait"><span class="trait-name">${t.name}.</span> ${t.desc}</div>`).join('')}
+                ` : ''}
+
+                <div class="section-title">Actions</div>
+                ${m.multiattack ? `<div class="trait"><span class="trait-name">Multiattack.</span> ${m.multiattack.desc}</div>` : ''}
+                ${m.attacks.map(a => `
+                    <div class="trait">
+                        <span class="trait-name">${a.name}.</span>
+                        ${a.range ? 'Ranged' : 'Melee'} Weapon Attack: +${a.toHit} to hit.
+                        Hit: ${a.damage} ${a.damageType} damage${a.extra ? ` plus ${a.extra}` : ''}.
+                    </div>
+                `).join('')}
+
+                ${m.specialAbilities && m.specialAbilities.length > 0 ? `
+                    ${m.specialAbilities.map(sa => `
+                        <div class="trait">
+                            <span class="trait-name">${sa.name}${sa.recharge ? ` (Recharge ${sa.recharge.join('-')})` : ''}.</span>
+                            ${sa.desc}${sa.damage ? ` ${sa.damage} ${sa.damageType} damage.` : ''}
+                            ${sa.save ? ` DC ${sa.save.dc} ${sa.save.type.toUpperCase()} save${sa.halfOnSave ? ' for half' : ''}.` : ''}
+                        </div>
+                    `).join('')}
+                ` : ''}
+
+                ${m.spellcasting ? `
+                    <div class="section-title">Spellcasting</div>
+                    <div class="trait">Spell save DC ${m.spellcasting.dc}. Known spells: ${m.spellcasting.spells.map(s => s.name).join(', ')}.</div>
+                ` : ''}
+
+                ${m.legendaryActions ? `
+                    <div class="section-title">Legendary Actions</div>
+                    <div class="trait">Can take ${m.legendaryActions} legendary actions, choosing from the options below.</div>
+                    ${m.legendaryActionsList.map(la => `
+                        <div class="trait"><span class="trait-name">${la.name} (${la.cost} action${la.cost > 1 ? 's' : ''}).</span> ${la.desc}</div>
+                    `).join('')}
+                ` : ''}
+            `;
+
+            checkFightButton();
+        }
+
+        function checkFightButton() {
+            const btn = document.getElementById('fightBtn');
+            const m1 = document.getElementById('monster1Select').value;
+            const m2 = document.getElementById('monster2Select').value;
+            btn.disabled = !m1 || !m2;
+        }
+
+        // Start battle
+        function startBattle() {
+            const m1Key = document.getElementById('monster1Select').value;
+            const m2Key = document.getElementById('monster2Select').value;
+
+            // Deep clone monsters for battle
+            battleState.monster1 = JSON.parse(JSON.stringify(monsters[m1Key]));
+            battleState.monster2 = JSON.parse(JSON.stringify(monsters[m2Key]));
+
+            // Set current HP
+            battleState.monster1.currentHp = battleState.monster1.hp;
+            battleState.monster2.currentHp = battleState.monster2.hp;
+            battleState.monster1.maxHp = battleState.monster1.hp;
+            battleState.monster2.maxHp = battleState.monster2.hp;
+            battleState.monster1.id = 1;
+            battleState.monster2.id = 2;
+
+            // Reset recharge abilities
+            if (battleState.monster1.specialAbilities) {
+                battleState.monster1.specialAbilities.forEach(sa => { if (sa.recharge) sa.recharged = true; });
+            }
+            if (battleState.monster2.specialAbilities) {
+                battleState.monster2.specialAbilities.forEach(sa => { if (sa.recharge) sa.recharged = true; });
+            }
+
+            // Legendary resistances
+            battleState.monster1.legendaryResistances = 3;
+            battleState.monster2.legendaryResistances = 3;
+            battleState.monster1.legendaryActionsRemaining = battleState.monster1.legendaryActions || 0;
+            battleState.monster2.legendaryActionsRemaining = battleState.monster2.legendaryActions || 0;
+
+            // Spell slots
+            if (battleState.monster1.spellcasting) {
+                battleState.monster1.spellSlots = JSON.parse(JSON.stringify(battleState.monster1.spellcasting.slots));
+            }
+            if (battleState.monster2.spellcasting) {
+                battleState.monster2.spellSlots = JSON.parse(JSON.stringify(battleState.monster2.spellcasting.slots));
+            }
+
+            // Reset battle stats
+            battleState.round = 1;
+            battleState.currentTurn = 0;
+            battleState.isPaused = false;
+            battleState.isRunning = true;
+            battleState.totalDamage1 = 0;
+            battleState.totalDamage2 = 0;
+
+            // Roll initiative
+            const init1 = rollD20() + getModifier(battleState.monster1.abilities.dex);
+            const init2 = rollD20() + getModifier(battleState.monster2.abilities.dex);
+
+            battleState.monster1.initiative = init1;
+            battleState.monster2.initiative = init2;
+
+            // Sort by initiative
+            battleState.combatants = [battleState.monster1, battleState.monster2].sort((a, b) => b.initiative - a.initiative);
+
+            // Show battle arena
+            document.getElementById('selectionPhase').style.display = 'none';
+            document.getElementById('battleArena').style.display = 'block';
+            document.getElementById('combatLog').style.display = 'block';
+
+            // Set up arena
+            document.getElementById('combatantName1').textContent = battleState.monster1.name;
+            document.getElementById('combatantName2').textContent = battleState.monster2.name;
+            document.getElementById('portrait1').textContent = battleState.monster1.icon;
+            document.getElementById('portrait2').textContent = battleState.monster2.icon;
+
+            updateHealthBars();
+
+            // Clear and start combat log
+            const logContent = document.getElementById('logContent');
+            logContent.innerHTML = '';
+
+            addLogEntry(`⚔️ BATTLE BEGINS! ⚔️`, 'initiative');
+            addLogEntry(`${battleState.monster1.icon} ${battleState.monster1.name} rolls initiative: <span class="dice-roll">${init1}</span>`, 'initiative');
+            addLogEntry(`${battleState.monster2.icon} ${battleState.monster2.name} rolls initiative: <span class="dice-roll">${init2}</span>`, 'initiative');
+            addLogEntry(`${battleState.combatants[0].icon} ${battleState.combatants[0].name} goes first!`, 'initiative');
+
+            // Start combat loop
+            setTimeout(() => runCombatRound(), battleState.battleSpeed);
+        }
+
+        function updateHealthBars() {
+            const m1 = battleState.monster1;
+            const m2 = battleState.monster2;
+
+            const hp1Percent = Math.max(0, (m1.currentHp / m1.maxHp) * 100);
+            const hp2Percent = Math.max(0, (m2.currentHp / m2.maxHp) * 100);
+
+            const bar1 = document.getElementById('healthBar1');
+            const bar2 = document.getElementById('healthBar2');
+
+            bar1.style.width = hp1Percent + '%';
+            bar2.style.width = hp2Percent + '%';
+
+            // Update colors based on HP
+            bar1.className = 'health-bar' + (hp1Percent <= 25 ? ' critical' : hp1Percent <= 50 ? ' low' : '');
+            bar2.className = 'health-bar' + (hp2Percent <= 25 ? ' critical' : hp2Percent <= 50 ? ' low' : '');
+
+            document.getElementById('healthText1').textContent = `${Math.max(0, m1.currentHp)}/${m1.maxHp}`;
+            document.getElementById('healthText2').textContent = `${Math.max(0, m2.currentHp)}/${m2.maxHp}`;
+        }
+
+        function addLogEntry(text, type = '') {
+            const logContent = document.getElementById('logContent');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + type;
+            entry.innerHTML = text;
+            logContent.appendChild(entry);
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        function addRoundMarker() {
+            const logContent = document.getElementById('logContent');
+            const marker = document.createElement('div');
+            marker.className = 'log-round';
+            marker.textContent = `═══ ROUND ${battleState.round} ═══`;
+            logContent.appendChild(marker);
+        }
+
+        function showDamagePopup(targetId, damage, isCritical = false) {
+            const combatant = document.getElementById(`combatant${targetId}`);
+            const rect = combatant.getBoundingClientRect();
+
+            const popup = document.createElement('div');
+            popup.className = 'damage-popup' + (isCritical ? ' critical' : '');
+            popup.textContent = '-' + damage;
+            popup.style.left = (rect.left + rect.width / 2) + 'px';
+            popup.style.top = rect.top + 'px';
+
+            document.body.appendChild(popup);
+
+            setTimeout(() => popup.remove(), 1000);
+        }
+
+        // Main combat round
+        async function runCombatRound() {
+            if (!battleState.isRunning) return;
+
+            if (battleState.currentTurn === 0) {
+                addRoundMarker();
+            }
+
+            while (battleState.currentTurn < battleState.combatants.length && battleState.isRunning) {
+                if (battleState.isPaused) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    continue;
+                }
+
+                const attacker = battleState.combatants[battleState.currentTurn];
+                const defender = battleState.combatants[(battleState.currentTurn + 1) % 2];
+
+                // Check if battle is over
+                if (attacker.currentHp <= 0 || defender.currentHp <= 0) {
+                    endBattle();
+                    return;
+                }
+
+                // Highlight active combatant
+                document.getElementById(`combatant${attacker.id}`).classList.add('active');
+                document.getElementById(`combatant${defender.id}`).classList.remove('active');
+
+                // Handle regeneration (Vampire)
+                if (attacker.regeneration && attacker.currentHp > 0) {
+                    attacker.currentHp = Math.min(attacker.maxHp, attacker.currentHp + attacker.regeneration);
+                    addLogEntry(`${attacker.icon} ${attacker.name} regenerates ${attacker.regeneration} HP!`, 'ability');
+                    updateHealthBars();
+                }
+
+                // Recharge abilities
+                if (attacker.specialAbilities) {
+                    attacker.specialAbilities.forEach(sa => {
+                        if (sa.recharge && !sa.recharged) {
+                            const rechargeRoll = rollD20();
+                            if (sa.recharge.includes(rechargeRoll) || (rechargeRoll >= sa.recharge[0])) {
+                                sa.recharged = true;
+                                addLogEntry(`${attacker.icon} ${attacker.name}'s ${sa.name} has recharged! <span class="dice-roll">${rechargeRoll}</span>`, 'ability');
+                            }
+                        }
+                    });
+                }
+
+                await new Promise(resolve => setTimeout(resolve, battleState.battleSpeed / 2));
+
+                // Execute turn
+                await executeTurn(attacker, defender);
+
+                // Check for death
+                if (defender.currentHp <= 0) {
+                    endBattle();
+                    return;
+                }
+
+                // Legendary actions (defender can use after attacker's turn)
+                if (defender.legendaryActionsRemaining > 0 && defender.legendaryActionsList) {
+                    await executeLegendaryAction(defender, attacker);
+                }
+
+                battleState.currentTurn++;
+
+                await new Promise(resolve => setTimeout(resolve, battleState.battleSpeed));
+            }
+
+            // Reset for next round
+            battleState.currentTurn = 0;
+            battleState.round++;
+
+            // Reset legendary actions
+            battleState.monster1.legendaryActionsRemaining = battleState.monster1.legendaryActions || 0;
+            battleState.monster2.legendaryActionsRemaining = battleState.monster2.legendaryActions || 0;
+
+            // Continue combat
+            if (battleState.isRunning) {
+                runCombatRound();
+            }
+        }
+
+        async function executeTurn(attacker, defender) {
+            document.getElementById(`combatant${attacker.id}`).classList.add('attacking');
+
+            // Decide action: special ability or multiattack
+            let usedSpecial = false;
+
+            // Try to use special ability
+            if (attacker.specialAbilities) {
+                for (const sa of attacker.specialAbilities) {
+                    if (sa.recharged !== false && !sa.autoTrigger && !sa.special && !sa.noDirectDamage) {
+                        // Use the special ability
+                        await executeSpecialAbility(attacker, defender, sa);
+                        if (sa.recharge) sa.recharged = false;
+                        usedSpecial = true;
+                        break;
+                    }
+                }
+            }
+
+            // Try to cast a spell
+            if (!usedSpecial && attacker.spellcasting && attacker.spellSlots) {
+                const spell = selectSpell(attacker, defender);
+                if (spell) {
+                    await castSpell(attacker, defender, spell);
+                    usedSpecial = true;
+                }
+            }
+
+            // Use multiattack or single attack
+            if (!usedSpecial) {
+                if (attacker.multiattack) {
+                    addLogEntry(`${attacker.icon} ${attacker.name} uses <strong>Multiattack</strong>!`, 'attack');
+                    for (const attackName of attacker.multiattack.attacks) {
+                        const attack = attacker.attacks.find(a => a.name === attackName);
+                        if (attack) {
+                            await executeAttack(attacker, defender, attack);
+                            if (defender.currentHp <= 0) break;
+                            await new Promise(resolve => setTimeout(resolve, battleState.battleSpeed / 3));
+                        }
+                    }
+                } else if (attacker.attacks.length > 0) {
+                    await executeAttack(attacker, defender, attacker.attacks[0]);
+                }
+            }
+
+            // Handle auto-trigger abilities (like Balor's Fire Aura)
+            if (attacker.specialAbilities) {
+                for (const sa of attacker.specialAbilities) {
+                    if (sa.autoTrigger) {
+                        await executeSpecialAbility(attacker, defender, sa);
+                    }
+                }
+            }
+
+            // Handle Beholder eye rays
+            if (attacker.eyeRays) {
+                for (let i = 0; i < attacker.eyeRays; i++) {
+                    const eyeRays = attacker.specialAbilities.filter(sa => sa.eyeRay);
+                    if (eyeRays.length > 0) {
+                        const ray = eyeRays[Math.floor(Math.random() * eyeRays.length)];
+                        await executeSpecialAbility(attacker, defender, ray);
+                        await new Promise(resolve => setTimeout(resolve, battleState.battleSpeed / 3));
+                    }
+                }
+            }
+
+            document.getElementById(`combatant${attacker.id}`).classList.remove('attacking');
+        }
+
+        async function executeAttack(attacker, defender, attack) {
+            const attackRoll = rollD20();
+            const toHit = attackRoll + attack.toHit;
+            const isCritical = attackRoll === 20;
+            const isMiss = attackRoll === 1 || (toHit < defender.ac && !isCritical);
+
+            if (isMiss) {
+                addLogEntry(
+                    `${attacker.icon} ${attacker.name} attacks with <strong>${attack.name}</strong>: ` +
+                    `<span class="dice-roll">${attackRoll}</span> + ${attack.toHit} = ${toHit} vs AC ${defender.ac} — <em>MISS!</em>`,
+                    'miss'
+                );
+                return;
+            }
+
+            // Calculate damage
+            const damageResult = rollDice(attack.damage);
+            let totalDamage = isCritical ? damageResult.total + rollDice(attack.damage).total : damageResult.total;
+
+            // Extra damage
+            let extraDamage = 0;
+            let extraText = '';
+            if (attack.extra) {
+                const extraMatch = attack.extra.match(/(\d+d\d+)/);
+                if (extraMatch) {
+                    const extraResult = rollDice(extraMatch[1]);
+                    extraDamage = isCritical ? extraResult.total * 2 : extraResult.total;
+                    extraText = ` + ${extraDamage} extra`;
+
+                    // Check for damage immunity on extra damage type
+                    const extraType = attack.extra.toLowerCase();
+                    if (defender.damageImmunities) {
+                        for (const immunity of defender.damageImmunities) {
+                            if (extraType.includes(immunity)) {
+                                extraDamage = 0;
+                                extraText = ` (${immunity} immune)`;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Check damage immunities
+            if (defender.damageImmunities && defender.damageImmunities.includes(attack.damageType)) {
+                addLogEntry(
+                    `${attacker.icon} ${attacker.name} hits with <strong>${attack.name}</strong> but ${defender.name} is <em>IMMUNE</em> to ${attack.damageType}!`,
+                    'miss'
+                );
+                return;
+            }
+
+            // Check fire absorption (Iron Golem)
+            if (defender.fireAbsorption && attack.damageType === 'fire') {
+                defender.currentHp = Math.min(defender.maxHp, defender.currentHp + totalDamage);
+                addLogEntry(
+                    `${defender.icon} ${defender.name} <em>ABSORBS</em> ${totalDamage} fire damage and heals!`,
+                    'ability'
+                );
+                updateHealthBars();
+                return;
+            }
+
+            totalDamage += extraDamage;
+
+            // Apply damage
+            defender.currentHp -= totalDamage;
+            if (attacker.id === 1) {
+                battleState.totalDamage1 += totalDamage;
+            } else {
+                battleState.totalDamage2 += totalDamage;
+            }
+
+            const logType = isCritical ? 'critical' : 'damage';
+            addLogEntry(
+                `${attacker.icon} ${attacker.name} ${isCritical ? '<strong>CRITICAL HIT!</strong>' : 'hits'} with <strong>${attack.name}</strong>: ` +
+                `<span class="dice-roll">${attackRoll}</span> + ${attack.toHit} = ${toHit} vs AC ${defender.ac} — ` +
+                `<strong>${totalDamage} ${attack.damageType} damage!</strong>${extraText}`,
+                logType
+            );
+
+            document.getElementById(`combatant${defender.id}`).classList.add('hit');
+            setTimeout(() => document.getElementById(`combatant${defender.id}`).classList.remove('hit'), 300);
+
+            showDamagePopup(defender.id, totalDamage, isCritical);
+            updateHealthBars();
+        }
+
+        async function executeSpecialAbility(attacker, defender, ability) {
+            if (ability.noDirectDamage) {
+                addLogEntry(
+                    `${attacker.icon} ${attacker.name} uses <strong>${ability.name}</strong>! ${ability.desc}`,
+                    'ability'
+                );
+                return;
+            }
+
+            let damage = 0;
+            let saved = false;
+
+            if (ability.save) {
+                const saveRoll = rollD20();
+                const saveMod = getModifier(defender.abilities[ability.save.type]);
+                const saveBonus = defender.savingThrows?.[ability.save.type] || saveMod;
+                const saveTotal = saveRoll + saveBonus;
+
+                // Check for legendary resistance
+                if (saveTotal < ability.save.dc && defender.legendaryResistances > 0) {
+                    if (Math.random() < 0.7) { // 70% chance to use legendary resistance on failed save
+                        defender.legendaryResistances--;
+                        addLogEntry(
+                            `${defender.icon} ${defender.name} uses <strong>Legendary Resistance</strong>! (${defender.legendaryResistances} remaining)`,
+                            'legendary'
+                        );
+                        saved = true;
+                    }
+                }
+
+                if (!saved) {
+                    saved = saveTotal >= ability.save.dc;
+                }
+
+                addLogEntry(
+                    `${defender.icon} ${defender.name} makes a ${ability.save.type.toUpperCase()} save: ` +
+                    `<span class="dice-roll">${saveRoll}</span> + ${saveBonus} = ${saveTotal} vs DC ${ability.save.dc} — ${saved ? 'SUCCESS!' : 'FAILED!'}`,
+                    saved ? 'miss' : 'ability'
+                );
+            }
+
+            if (ability.damage) {
+                const damageResult = rollDice(ability.damage);
+                damage = damageResult.total;
+
+                // Check damage immunities
+                if (defender.damageImmunities && defender.damageImmunities.includes(ability.damageType)) {
+                    addLogEntry(
+                        `${attacker.icon} ${attacker.name} uses <strong>${ability.name}</strong> but ${defender.name} is <em>IMMUNE</em> to ${ability.damageType}!`,
+                        'miss'
+                    );
+                    return;
+                }
+
+                // Fire absorption check
+                if (defender.fireAbsorption && ability.damageType === 'fire') {
+                    defender.currentHp = Math.min(defender.maxHp, defender.currentHp + damage);
+                    addLogEntry(
+                        `${defender.icon} ${defender.name} <em>ABSORBS</em> ${damage} fire damage and heals!`,
+                        'ability'
+                    );
+                    updateHealthBars();
+                    return;
+                }
+
+                if (saved && ability.halfOnSave) {
+                    damage = Math.floor(damage / 2);
+                } else if (saved && !ability.halfOnSave) {
+                    damage = 0;
+                }
+
+                if (damage > 0) {
+                    defender.currentHp -= damage;
+                    if (attacker.id === 1) {
+                        battleState.totalDamage1 += damage;
+                    } else {
+                        battleState.totalDamage2 += damage;
+                    }
+
+                    addLogEntry(
+                        `${attacker.icon} ${attacker.name} uses <strong>${ability.name}</strong>! ` +
+                        `${ability.desc} — <strong>${damage} ${ability.damageType} damage!</strong>${saved && ability.halfOnSave ? ' (half damage)' : ''}`,
+                        'ability'
+                    );
+
+                    document.getElementById(`combatant${defender.id}`).classList.add('hit');
+                    setTimeout(() => document.getElementById(`combatant${defender.id}`).classList.remove('hit'), 300);
+
+                    showDamagePopup(defender.id, damage);
+                    updateHealthBars();
+                }
+            } else {
+                addLogEntry(
+                    `${attacker.icon} ${attacker.name} uses <strong>${ability.name}</strong>! ${ability.desc}`,
+                    'ability'
+                );
+            }
+        }
+
+        function selectSpell(attacker, defender) {
+            if (!attacker.spellcasting || !attacker.spellSlots) return null;
+
+            // Sort spells by level (highest first)
+            const availableSpells = attacker.spellcasting.spells.filter(spell => {
+                return attacker.spellSlots[spell.level] > 0;
+            }).sort((a, b) => b.level - a.level);
+
+            if (availableSpells.length === 0) return null;
+
+            // Power Word Kill special handling
+            const pwk = availableSpells.find(s => s.name === 'Power Word Kill');
+            if (pwk && defender.currentHp <= 100 && attacker.spellSlots[9] > 0) {
+                return pwk;
+            }
+
+            // Use highest level damaging spell
+            const damagingSpells = availableSpells.filter(s => s.damage && parseInt(s.damage) > 0);
+            if (damagingSpells.length > 0) {
+                return damagingSpells[0];
+            }
+
+            return null;
+        }
+
+        async function castSpell(attacker, defender, spell) {
+            attacker.spellSlots[spell.level]--;
+
+            // Power Word Kill
+            if (spell.instant && spell.name === 'Power Word Kill') {
+                if (defender.currentHp <= 100) {
+                    defender.currentHp = 0;
+                    addLogEntry(
+                        `${attacker.icon} ${attacker.name} casts <strong>${spell.name}</strong>! ${defender.name} is instantly SLAIN!`,
+                        'critical'
+                    );
+                    showDamagePopup(defender.id, 'DEATH', true);
+                    updateHealthBars();
+                    return;
+                } else {
+                    addLogEntry(
+                        `${attacker.icon} ${attacker.name} casts <strong>${spell.name}</strong> but ${defender.name} has too many hit points!`,
+                        'miss'
+                    );
+                    return;
+                }
+            }
+
+            // Regular spell with save
+            let damage = 0;
+            let saved = false;
+
+            if (spell.save) {
+                const saveRoll = rollD20();
+                const saveMod = getModifier(defender.abilities[spell.save.type]);
+                const saveBonus = defender.savingThrows?.[spell.save.type] || saveMod;
+                const saveTotal = saveRoll + saveBonus;
+
+                // Legendary resistance
+                if (saveTotal < spell.save.dc && defender.legendaryResistances > 0) {
+                    if (Math.random() < 0.8) {
+                        defender.legendaryResistances--;
+                        addLogEntry(
+                            `${defender.icon} ${defender.name} uses <strong>Legendary Resistance</strong>! (${defender.legendaryResistances} remaining)`,
+                            'legendary'
+                        );
+                        saved = true;
+                    }
+                }
+
+                if (!saved) {
+                    saved = saveTotal >= spell.save.dc;
+                }
+
+                addLogEntry(
+                    `${defender.icon} ${defender.name} makes a ${spell.save.type.toUpperCase()} save vs ${spell.name}: ` +
+                    `<span class="dice-roll">${saveRoll}</span> + ${saveBonus} = ${saveTotal} vs DC ${spell.save.dc} — ${saved ? 'SUCCESS!' : 'FAILED!'}`,
+                    saved ? 'miss' : 'ability'
+                );
+            }
+
+            if (spell.autoHit || !spell.save || !saved || spell.halfOnSave) {
+                const damageResult = rollDice(spell.damage);
+                damage = damageResult.total;
+
+                // Check immunity
+                if (defender.damageImmunities && defender.damageImmunities.includes(spell.damageType)) {
+                    addLogEntry(
+                        `${attacker.icon} ${attacker.name} casts <strong>${spell.name}</strong> but ${defender.name} is <em>IMMUNE</em>!`,
+                        'miss'
+                    );
+                    return;
+                }
+
+                if (saved && spell.halfOnSave) {
+                    damage = Math.floor(damage / 2);
+                } else if (saved) {
+                    damage = 0;
+                }
+
+                if (damage > 0) {
+                    defender.currentHp -= damage;
+                    if (attacker.id === 1) {
+                        battleState.totalDamage1 += damage;
+                    } else {
+                        battleState.totalDamage2 += damage;
+                    }
+
+                    addLogEntry(
+                        `${attacker.icon} ${attacker.name} casts <strong>${spell.name}</strong>! ` +
+                        `<strong>${damage} ${spell.damageType} damage!</strong>${saved && spell.halfOnSave ? ' (half)' : ''}`,
+                        'ability'
+                    );
+
+                    document.getElementById(`combatant${defender.id}`).classList.add('hit');
+                    setTimeout(() => document.getElementById(`combatant${defender.id}`).classList.remove('hit'), 300);
+
+                    showDamagePopup(defender.id, damage);
+                    updateHealthBars();
+                }
+            }
+        }
+
+        async function executeLegendaryAction(monster, target) {
+            if (monster.legendaryActionsRemaining <= 0 || !monster.legendaryActionsList) return;
+
+            // Find a usable legendary action
+            const availableActions = monster.legendaryActionsList.filter(la => la.cost <= monster.legendaryActionsRemaining);
+            if (availableActions.length === 0) return;
+
+            // Pick one (prioritize damage-dealing actions)
+            const damageActions = availableActions.filter(la => la.damage || la.attack);
+            const action = damageActions.length > 0
+                ? damageActions[Math.floor(Math.random() * damageActions.length)]
+                : availableActions[Math.floor(Math.random() * availableActions.length)];
+
+            monster.legendaryActionsRemaining -= action.cost;
+
+            await new Promise(resolve => setTimeout(resolve, battleState.battleSpeed / 2));
+
+            addLogEntry(
+                `${monster.icon} ${monster.name} takes a <strong>Legendary Action</strong>: ${action.name}!`,
+                'legendary'
+            );
+
+            if (action.attack) {
+                const attack = monster.attacks.find(a => a.name === action.attack);
+                if (attack) {
+                    await executeAttack(monster, target, attack);
+                }
+            } else if (action.damage) {
+                let damage = 0;
+                const damageResult = rollDice(action.damage);
+                damage = damageResult.total;
+
+                if (action.save) {
+                    const saveRoll = rollD20();
+                    const saveMod = getModifier(target.abilities[action.save.type]);
+                    const saveBonus = target.savingThrows?.[action.save.type] || saveMod;
+                    const saveTotal = saveRoll + saveBonus;
+                    const saved = saveTotal >= action.save.dc;
+
+                    if (saved) {
+                        damage = Math.floor(damage / 2);
+                    }
+
+                    addLogEntry(
+                        `${target.icon} ${target.name} ${action.save.type.toUpperCase()} save: <span class="dice-roll">${saveTotal}</span> vs DC ${action.save.dc} — ${saved ? 'half damage!' : 'failed!'}`,
+                        saved ? 'miss' : 'damage'
+                    );
+                }
+
+                if (damage > 0) {
+                    target.currentHp -= damage;
+                    if (monster.id === 1) {
+                        battleState.totalDamage1 += damage;
+                    } else {
+                        battleState.totalDamage2 += damage;
+                    }
+
+                    addLogEntry(
+                        `<strong>${damage} ${action.damageType} damage!</strong>`,
+                        'damage'
+                    );
+
+                    showDamagePopup(target.id, damage);
+                    updateHealthBars();
+                }
+            }
+        }
+
+        function endBattle() {
+            battleState.isRunning = false;
+
+            const winner = battleState.monster1.currentHp > 0 ? battleState.monster1 : battleState.monster2;
+            const loser = battleState.monster1.currentHp > 0 ? battleState.monster2 : battleState.monster1;
+
+            addLogEntry(`💀 ${loser.icon} ${loser.name} has been DEFEATED!`, 'death');
+            addLogEntry(`🏆 ${winner.icon} ${winner.name} is VICTORIOUS with ${winner.currentHp}/${winner.maxHp} HP remaining!`, 'victory');
+
+            // Show victory screen
+            document.getElementById('victoryScreen').style.display = 'flex';
+            document.getElementById('victoryWinner').textContent = `${winner.icon} ${winner.name} ${winner.icon}`;
+            document.getElementById('victoryStats').innerHTML = `
+                <p>Rounds: ${battleState.round}</p>
+                <p>Winner's HP: ${winner.currentHp}/${winner.maxHp}</p>
+                <p>${battleState.monster1.name} dealt: ${battleState.totalDamage1} damage</p>
+                <p>${battleState.monster2.name} dealt: ${battleState.totalDamage2} damage</p>
+            `;
+        }
+
+        function togglePause() {
+            battleState.isPaused = !battleState.isPaused;
+            document.getElementById('pauseBtn').textContent = battleState.isPaused ? '▶ Resume' : '⏸ Pause';
+        }
+
+        function skipToEnd() {
+            battleState.battleSpeed = 10;
+            if (battleState.isPaused) togglePause();
+        }
+
+        function resetBattle() {
+            battleState.isRunning = false;
+            battleState.isPaused = false;
+            battleState.battleSpeed = 1000;
+
+            document.getElementById('victoryScreen').style.display = 'none';
+            document.getElementById('battleArena').style.display = 'none';
+            document.getElementById('selectionPhase').style.display = 'grid';
+            document.getElementById('logContent').innerHTML = '';
+            document.getElementById('speedSlider').value = 5;
+            document.getElementById('pauseBtn').textContent = '⏸ Pause';
+        }
+
+        function updateSpeed() {
+            const slider = document.getElementById('speedSlider');
+            battleState.battleSpeed = 2000 - (slider.value * 180);
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeMonsterSelects();
+        });
+    </script>
+</body>
+</html>
