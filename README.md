@@ -8,7 +8,7 @@ The ultimate D&D 5e monster combat simulator with three game modes!
 
 **[Play Online](https://your-netlify-url.netlify.app)** *(update with your Netlify URL)*
 
-Or download and open `index.html` in your browser.
+**[Download ZIP](dnd-battle-simulator.zip)** - Extract and open `index.html` in your browser.
 
 ---
 
