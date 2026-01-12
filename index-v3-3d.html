@@ -3,1871 +3,1275 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>D&D Monster Battle Arena - 3D</title>
+    <title>D&D Monster Battle Arena - 3D Ultimate</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="v3/monsters.js"></script>
+    <script src="v3/audio.js"></script>
+    <script src="v3/combat.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #000; overflow: hidden; color: #fff; }
+        #game-container { position: relative; width: 100vw; height: 100vh; }
+        #canvas-container { position: absolute; inset: 0; }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #000;
-            overflow: hidden;
-            color: #fff;
-        }
+        /* Screens */
+        .screen { position: absolute; inset: 0; display: none; z-index: 100; }
+        .screen.active { display: flex; }
 
-        #game-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-        }
-
-        #canvas-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-
-        /* Title Screen */
-        #title-screen {
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(ellipse at center, #1a0a0a 0%, #000 100%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-        }
-
-        .title {
-            font-family: 'Times New Roman', serif;
-            font-size: 4rem;
-            color: #c9a227;
-            text-shadow: 0 0 30px rgba(201, 162, 39, 0.8), 0 4px 8px #000;
-            letter-spacing: 8px;
-            text-transform: uppercase;
-            animation: title-glow 3s ease-in-out infinite;
-        }
-
-        @keyframes title-glow {
-            0%, 100% { text-shadow: 0 0 30px rgba(201, 162, 39, 0.8), 0 4px 8px #000; }
-            50% { text-shadow: 0 0 60px rgba(201, 162, 39, 1), 0 4px 8px #000, 0 0 100px rgba(201, 162, 39, 0.5); }
-        }
-
-        .subtitle {
-            font-size: 1.5rem;
-            color: #8b0000;
-            margin-top: 10px;
-            letter-spacing: 12px;
-            text-transform: uppercase;
-        }
-
-        .start-btn {
-            margin-top: 60px;
-            padding: 20px 60px;
-            font-size: 1.5rem;
-            font-family: 'Times New Roman', serif;
-            background: linear-gradient(180deg, #8b0000 0%, #4a0000 100%);
-            color: #c9a227;
-            border: 3px solid #c9a227;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            transition: all 0.3s;
-            box-shadow: 0 0 30px rgba(139, 0, 0, 0.5);
-        }
-
-        .start-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 50px rgba(201, 162, 39, 0.8);
-        }
+        /* Title */
+        #title-screen { background: radial-gradient(ellipse at center, #1a0a0a 0%, #000 100%); flex-direction: column; align-items: center; justify-content: center; }
+        .title { font-family: 'Times New Roman', serif; font-size: 3.5rem; color: #c9a227; text-shadow: 0 0 30px rgba(201,162,39,0.8), 0 4px 8px #000; letter-spacing: 6px; text-transform: uppercase; animation: glow 3s infinite; }
+        @keyframes glow { 50% { text-shadow: 0 0 60px rgba(201,162,39,1), 0 4px 8px #000; } }
+        .subtitle { font-size: 1.3rem; color: #8b0000; margin-top: 10px; letter-spacing: 8px; }
+        .mode-buttons { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 50px; justify-content: center; max-width: 800px; }
+        .mode-btn { padding: 25px 35px; font-size: 1.1rem; font-family: 'Times New Roman', serif; background: linear-gradient(180deg, #8b0000 0%, #4a0000 100%); color: #c9a227; border: 2px solid #c9a227; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; transition: all 0.3s; min-width: 180px; }
+        .mode-btn:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(201,162,39,0.5); }
+        .mode-btn .icon { font-size: 2rem; display: block; margin-bottom: 10px; }
 
         /* Selection Screen */
-        #selection-screen {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.85);
-            display: none;
-            z-index: 90;
-            padding: 20px;
-        }
+        #select-screen { background: rgba(0,0,0,0.9); flex-direction: column; padding: 20px; }
+        .select-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 2px solid #c9a227; margin-bottom: 20px; }
+        .select-title { font-family: 'Times New Roman', serif; font-size: 1.8rem; color: #c9a227; }
+        .header-btn { padding: 10px 25px; background: #333; color: #c9a227; border: 2px solid #c9a227; cursor: pointer; font-size: 1rem; }
+        .header-btn:hover { background: #444; }
+        .header-btn.fight { background: linear-gradient(180deg, #8b0000 0%, #4a0000 100%); }
+        .header-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        .selection-header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
+        .select-body { display: grid; grid-template-columns: 1fr 120px 1fr; gap: 20px; flex: 1; overflow: hidden; }
+        .team-panel { background: rgba(30,20,20,0.8); border: 2px solid #8b4513; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
+        .team-title { text-align: center; padding: 15px; font-size: 1.3rem; color: #c9a227; border-bottom: 2px solid #8b4513; }
+        .team-title.red { border-left: 4px solid #8b0000; }
+        .team-title.blue { border-right: 4px solid #1e3a5f; }
 
-        .selection-header h2 {
-            font-family: 'Times New Roman', serif;
-            font-size: 2rem;
-            color: #c9a227;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-        }
+        .team-slots { display: flex; gap: 10px; padding: 15px; flex-wrap: wrap; min-height: 100px; background: rgba(0,0,0,0.3); }
+        .team-slot { width: 70px; height: 85px; border: 2px dashed #666; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.7rem; color: #666; }
+        .team-slot.filled { border-style: solid; border-color: #c9a227; background: rgba(201,162,39,0.1); cursor: pointer; }
+        .team-slot .icon { font-size: 1.8rem; }
+        .team-slot .name { font-size: 0.6rem; text-align: center; color: #ccc; margin-top: 3px; }
 
-        .selection-panels {
-            display: grid;
-            grid-template-columns: 1fr 200px 1fr;
-            gap: 20px;
-            height: calc(100vh - 150px);
-        }
+        .type-filters { display: flex; gap: 5px; padding: 10px; flex-wrap: wrap; border-bottom: 1px solid #444; }
+        .type-btn { padding: 5px 12px; font-size: 0.75rem; background: #333; color: #aaa; border: 1px solid #555; border-radius: 12px; cursor: pointer; }
+        .type-btn:hover, .type-btn.active { background: #c9a227; color: #000; border-color: #c9a227; }
 
-        .selection-panel {
-            background: linear-gradient(180deg, rgba(40, 20, 20, 0.9) 0%, rgba(20, 10, 10, 0.9) 100%);
-            border: 2px solid #8b4513;
-            border-radius: 10px;
-            padding: 20px;
-            overflow-y: auto;
-        }
+        .monster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; padding: 10px; overflow-y: auto; flex: 1; }
+        .monster-card { background: rgba(0,0,0,0.5); border: 2px solid #555; border-radius: 6px; padding: 8px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .monster-card:hover { border-color: #c9a227; background: rgba(201,162,39,0.1); }
+        .monster-card.selected { border-color: #c9a227; background: rgba(201,162,39,0.2); }
+        .monster-card.disabled { opacity: 0.3; pointer-events: none; }
+        .monster-card .icon { font-size: 2rem; }
+        .monster-card .name { font-size: 0.65rem; color: #ccc; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .monster-card .cr { font-size: 0.6rem; color: #888; }
 
-        .panel-title {
-            text-align: center;
-            font-size: 1.3rem;
-            color: #c9a227;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #8b4513;
-        }
+        .vs-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .vs-text { font-family: 'Times New Roman', serif; font-size: 3rem; color: #c9a227; text-shadow: 0 0 20px rgba(201,162,39,0.5); }
 
-        .monster-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            gap: 10px;
-        }
-
-        .monster-option {
-            background: rgba(0, 0, 0, 0.5);
-            border: 2px solid #555;
-            border-radius: 8px;
-            padding: 10px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .monster-option:hover {
-            border-color: #c9a227;
-            background: rgba(201, 162, 39, 0.1);
-        }
-
-        .monster-option.selected {
-            border-color: #c9a227;
-            background: rgba(201, 162, 39, 0.2);
-            box-shadow: 0 0 20px rgba(201, 162, 39, 0.3);
-        }
-
-        .monster-option .icon {
-            font-size: 2.5rem;
-            display: block;
-            margin-bottom: 5px;
-        }
-
-        .monster-option .name {
-            font-size: 0.75rem;
-            color: #ccc;
-        }
-
-        .monster-option .cr {
-            font-size: 0.65rem;
-            color: #888;
-        }
-
-        .vs-panel {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .vs-text {
-            font-family: 'Times New Roman', serif;
-            font-size: 4rem;
-            color: #c9a227;
-            text-shadow: 0 0 30px rgba(201, 162, 39, 0.8);
-        }
-
-        .fight-btn {
-            margin-top: 30px;
-            padding: 15px 40px;
-            font-size: 1.2rem;
-            font-family: 'Times New Roman', serif;
-            background: linear-gradient(180deg, #8b0000 0%, #4a0000 100%);
-            color: #c9a227;
-            border: 2px solid #c9a227;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            transition: all 0.3s;
-        }
-
-        .fight-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .fight-btn:not(:disabled):hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 30px rgba(201, 162, 39, 0.5);
-        }
+        /* Tournament Screen */
+        #tournament-screen { background: rgba(0,0,0,0.95); flex-direction: column; padding: 20px; }
+        .bracket { display: flex; justify-content: center; gap: 30px; padding: 20px; overflow-x: auto; flex: 1; align-items: center; }
+        .bracket-round { display: flex; flex-direction: column; gap: 20px; }
+        .round-label { text-align: center; color: #c9a227; font-size: 1.1rem; margin-bottom: 10px; }
+        .bracket-match { background: #1a1a1a; border: 2px solid #555; border-radius: 8px; min-width: 150px; overflow: hidden; }
+        .bracket-match.active { border-color: #c9a227; box-shadow: 0 0 15px rgba(201,162,39,0.4); }
+        .bracket-fighter { padding: 10px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #333; }
+        .bracket-fighter:last-child { border-bottom: none; }
+        .bracket-fighter.winner { background: rgba(201,162,39,0.2); }
+        .bracket-fighter.loser { opacity: 0.4; text-decoration: line-through; }
+        .bracket-fighter .icon { font-size: 1.2rem; }
+        .bracket-fighter .name { font-size: 0.85rem; }
 
         /* HUD */
-        #hud {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            display: none;
-            z-index: 50;
-        }
+        #hud { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 50; }
+        .combatant-hud { position: absolute; top: 15px; width: 320px; background: rgba(0,0,0,0.8); border: 2px solid #8b4513; border-radius: 8px; padding: 12px; }
+        .combatant-hud.left { left: 15px; }
+        .combatant-hud.right { right: 15px; }
+        .hud-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #444; }
+        .hud-row:last-child { margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
+        .hud-icon { font-size: 1.5rem; }
+        .hud-name { flex: 1; font-size: 0.9rem; color: #c9a227; }
+        .hud-hp { font-size: 0.8rem; color: #aaa; }
+        .hud-bar { height: 18px; background: #222; border-radius: 9px; overflow: hidden; flex: 1; }
+        .hud-bar-fill { height: 100%; background: linear-gradient(180deg, #4CAF50 0%, #2d5a30 100%); transition: width 0.3s; }
+        .hud-bar-fill.low { background: linear-gradient(180deg, #ff9800 0%, #b36b00 100%); }
+        .hud-bar-fill.critical { background: linear-gradient(180deg, #f44336 0%, #a02a2a 100%); animation: pulse 1s infinite; }
+        @keyframes pulse { 50% { opacity: 0.7; } }
+        .hud-conditions { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
+        .condition-badge { font-size: 0.65rem; padding: 2px 6px; border-radius: 8px; background: #666; }
 
-        .combatant-hud {
-            position: absolute;
-            top: 20px;
-            width: 350px;
-            background: linear-gradient(180deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.6) 100%);
-            border: 2px solid #8b4513;
-            border-radius: 10px;
-            padding: 15px;
-        }
+        #round-display { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border: 2px solid #c9a227; border-radius: 8px; padding: 10px 25px; text-align: center; }
+        #round-display .round { font-size: 1.1rem; color: #c9a227; }
+        #round-display .turn { font-size: 0.85rem; color: #aaa; margin-top: 5px; }
 
-        .combatant-hud.left { left: 20px; border-left: 4px solid #8b0000; }
-        .combatant-hud.right { right: 20px; border-right: 4px solid #1e3a5f; }
-
-        .combatant-name {
-            font-family: 'Times New Roman', serif;
-            font-size: 1.4rem;
-            color: #c9a227;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .combatant-name .icon {
-            font-size: 1.8rem;
-        }
-
-        .health-bar-outer {
-            height: 25px;
-            background: #222;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 2px solid #444;
-        }
-
-        .health-bar-inner {
-            height: 100%;
-            background: linear-gradient(180deg, #4CAF50 0%, #2d5a30 100%);
-            transition: width 0.5s ease-out;
-            border-radius: 10px;
-        }
-
-        .health-bar-inner.low {
-            background: linear-gradient(180deg, #ff9800 0%, #b36b00 100%);
-        }
-
-        .health-bar-inner.critical {
-            background: linear-gradient(180deg, #f44336 0%, #a02a2a 100%);
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            50% { opacity: 0.7; }
-        }
-
-        .health-text {
-            text-align: center;
-            margin-top: 5px;
-            font-size: 0.9rem;
-            color: #aaa;
-        }
-
-        /* Round indicator */
-        #round-indicator {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            border: 2px solid #c9a227;
-            border-radius: 10px;
-            padding: 10px 30px;
-            text-align: center;
-        }
-
-        #round-indicator .round {
-            font-family: 'Times New Roman', serif;
-            font-size: 1.2rem;
-            color: #c9a227;
-        }
-
-        #round-indicator .turn {
-            font-size: 0.9rem;
-            color: #aaa;
-            margin-top: 5px;
-        }
-
-        /* Combat log */
-        #combat-log {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            width: 400px;
-            max-height: 200px;
-            background: rgba(0, 0, 0, 0.7);
-            border: 2px solid #8b4513;
-            border-radius: 10px;
-            padding: 15px;
-            overflow-y: auto;
-            pointer-events: auto;
-        }
-
-        .log-entry {
-            font-size: 0.85rem;
-            padding: 5px 0;
-            border-bottom: 1px solid rgba(139, 69, 19, 0.3);
-            animation: log-fade-in 0.3s;
-        }
-
-        @keyframes log-fade-in {
-            from { opacity: 0; transform: translateX(-20px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-
+        #combat-log { position: absolute; bottom: 15px; left: 15px; width: 380px; max-height: 180px; background: rgba(0,0,0,0.8); border: 2px solid #8b4513; border-radius: 8px; padding: 12px; overflow-y: auto; pointer-events: auto; }
+        .log-entry { font-size: 0.8rem; padding: 4px 0; border-bottom: 1px solid rgba(139,69,19,0.2); animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-10px); } }
         .log-entry.damage { color: #ff6b6b; }
         .log-entry.critical { color: #ff00ff; font-weight: bold; }
         .log-entry.miss { color: #888; }
         .log-entry.ability { color: #00ccff; }
-        .log-entry.round { color: #c9a227; font-weight: bold; text-align: center; }
-        .log-entry.death { color: #fff; background: rgba(139, 0, 0, 0.3); padding: 8px; border-radius: 5px; }
+        .log-entry.legendary { color: #ffd700; }
+        .log-entry.round { color: #c9a227; text-align: center; font-weight: bold; border-color: #c9a227; }
+        .log-entry.death { color: #fff; background: rgba(139,0,0,0.3); padding: 6px; border-radius: 4px; }
+        .log-entry.heal { color: #4CAF50; }
+        .log-entry.status { color: #9932cc; }
+        .dice { background: #222; color: #c9a227; padding: 1px 4px; border-radius: 3px; font-family: monospace; }
 
-        /* Victory screen */
-        #victory-screen {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.9);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 80;
-        }
+        #battle-controls { position: absolute; bottom: 15px; right: 15px; display: flex; gap: 10px; pointer-events: auto; }
+        .control-btn { padding: 10px 20px; background: #333; color: #c9a227; border: 2px solid #c9a227; border-radius: 5px; cursor: pointer; font-size: 0.9rem; }
+        .control-btn:hover { background: #444; }
 
-        .victory-title {
-            font-family: 'Times New Roman', serif;
-            font-size: 4rem;
-            color: #c9a227;
-            text-shadow: 0 0 50px rgba(201, 162, 39, 0.8);
-            animation: victory-pulse 2s infinite;
-        }
+        /* Manual Mode Actions */
+        #manual-panel { position: absolute; bottom: 210px; left: 15px; width: 380px; background: rgba(0,0,0,0.9); border: 2px solid #c9a227; border-radius: 8px; padding: 15px; display: none; pointer-events: auto; }
+        .manual-title { font-size: 1rem; color: #c9a227; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #444; }
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .action-btn { padding: 10px; background: #222; border: 2px solid #555; border-radius: 5px; cursor: pointer; text-align: left; transition: all 0.2s; }
+        .action-btn:hover { border-color: #c9a227; background: #333; }
+        .action-name { font-size: 0.85rem; color: #c9a227; }
+        .action-info { font-size: 0.7rem; color: #888; margin-top: 3px; }
 
-        @keyframes victory-pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
+        /* Victory */
+        #victory-screen { background: rgba(0,0,0,0.9); flex-direction: column; align-items: center; justify-content: center; }
+        .victory-title { font-family: 'Times New Roman', serif; font-size: 3rem; color: #c9a227; animation: glow 2s infinite; }
+        .victory-icon { font-size: 6rem; margin: 30px 0; }
+        .victory-name { font-size: 1.8rem; margin-bottom: 20px; }
+        .victory-stats { background: rgba(50,50,50,0.5); padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: left; }
+        .victory-stats p { padding: 5px 0; }
 
-        .victory-icon {
-            font-size: 8rem;
-            margin: 30px 0;
-        }
+        /* Stats Screen */
+        #stats-screen { background: rgba(0,0,0,0.95); flex-direction: column; padding: 20px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; flex: 1; overflow-y: auto; padding: 20px 0; }
+        .stat-card { background: rgba(30,20,20,0.8); border: 2px solid #8b4513; border-radius: 8px; padding: 20px; }
+        .stat-card h3 { color: #c9a227; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #8b4513; }
+        .leaderboard-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #333; }
+        .leaderboard-rank { font-size: 1.3rem; color: #c9a227; width: 30px; }
+        .leaderboard-icon { font-size: 1.2rem; }
+        .leaderboard-name { flex: 1; }
+        .leaderboard-wins { color: #4CAF50; }
 
-        .victory-name {
-            font-size: 2rem;
-            color: #fff;
-            margin-bottom: 40px;
-        }
-
-        /* Controls hint */
-        #controls-hint {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.6);
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            color: #888;
-        }
+        /* Damage Popup */
+        .damage-popup { position: fixed; font-family: 'Times New Roman', serif; font-size: 1.8rem; font-weight: bold; color: #ff4444; text-shadow: 2px 2px 4px #000; pointer-events: none; animation: float 1s forwards; z-index: 200; }
+        .damage-popup.critical { color: #ff00ff; font-size: 2.2rem; }
+        .damage-popup.heal { color: #4CAF50; }
+        @keyframes float { to { opacity: 0; transform: translateY(-40px); } }
 
         /* Loading */
-        #loading {
-            position: absolute;
-            inset: 0;
-            background: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 200;
-        }
-
-        .loader {
-            width: 60px;
-            height: 60px;
-            border: 4px solid #333;
-            border-top-color: #c9a227;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        #loading { position: absolute; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 300; }
+        .loader { width: 50px; height: 50px; border: 4px solid #333; border-top-color: #c9a227; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         /* Responsive */
         @media (max-width: 900px) {
-            .title { font-size: 2rem; }
-            .selection-panels { grid-template-columns: 1fr; }
-            .vs-panel { padding: 20px 0; }
-            .combatant-hud { width: 45%; }
-            #combat-log { width: calc(100% - 40px); }
+            .select-body { grid-template-columns: 1fr; }
+            .vs-panel { padding: 15px 0; }
+            .combatant-hud { width: calc(50% - 20px); }
+            #combat-log { width: calc(100% - 30px); }
         }
     </style>
 </head>
 <body>
     <div id="game-container">
         <div id="loading"><div class="loader"></div></div>
-
         <div id="canvas-container"></div>
 
-        <div id="title-screen">
+        <!-- Title Screen -->
+        <div id="title-screen" class="screen active">
             <h1 class="title">Monster Battle</h1>
-            <p class="subtitle">3D Arena</p>
-            <button class="start-btn" onclick="showSelection()">Enter Arena</button>
-        </div>
-
-        <div id="selection-screen">
-            <div class="selection-header">
-                <h2>Choose Your Champions</h2>
-            </div>
-            <div class="selection-panels">
-                <div class="selection-panel">
-                    <div class="panel-title">🔴 Red Corner</div>
-                    <div class="monster-list" id="red-list"></div>
-                </div>
-                <div class="vs-panel">
-                    <div class="vs-text">VS</div>
-                    <button class="fight-btn" id="fight-btn" disabled onclick="startBattle()">⚔️ FIGHT</button>
-                    <button class="fight-btn" style="margin-top:15px;background:#333;" onclick="backToTitle()">← Back</button>
-                </div>
-                <div class="selection-panel">
-                    <div class="panel-title">🔵 Blue Corner</div>
-                    <div class="monster-list" id="blue-list"></div>
-                </div>
+            <p class="subtitle">3D Arena Ultimate</p>
+            <div class="mode-buttons">
+                <button class="mode-btn" onclick="startMode('1v1')"><span class="icon">⚔️</span>Classic 1v1</button>
+                <button class="mode-btn" onclick="startMode('team')"><span class="icon">👥</span>Team Battle</button>
+                <button class="mode-btn" onclick="startMode('tournament')"><span class="icon">🏆</span>Tournament</button>
+                <button class="mode-btn" onclick="startMode('manual')"><span class="icon">🎮</span>Manual Mode</button>
+                <button class="mode-btn" onclick="showStats()"><span class="icon">📊</span>Statistics</button>
             </div>
         </div>
 
+        <!-- Selection Screen -->
+        <div id="select-screen" class="screen">
+            <div class="select-header">
+                <button class="header-btn" onclick="backToTitle()">← Back</button>
+                <div class="select-title" id="select-title">Select Your Champions</div>
+                <button class="header-btn fight" id="fight-btn" onclick="startBattle()" disabled>⚔️ FIGHT</button>
+            </div>
+            <div class="select-body">
+                <div class="team-panel">
+                    <div class="team-title red">🔴 Red Team</div>
+                    <div class="team-slots" id="red-slots"></div>
+                    <div class="type-filters" id="red-filters"></div>
+                    <div class="monster-grid" id="red-grid"></div>
+                </div>
+                <div class="vs-panel"><div class="vs-text">VS</div></div>
+                <div class="team-panel">
+                    <div class="team-title blue">🔵 Blue Team</div>
+                    <div class="team-slots" id="blue-slots"></div>
+                    <div class="type-filters" id="blue-filters"></div>
+                    <div class="monster-grid" id="blue-grid"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tournament Screen -->
+        <div id="tournament-screen" class="screen">
+            <div class="select-header">
+                <button class="header-btn" onclick="backToTitle()">← Exit</button>
+                <div class="select-title">🏆 Tournament Bracket</div>
+                <button class="header-btn fight" id="next-match-btn" onclick="runNextMatch()">Next Match →</button>
+            </div>
+            <div class="bracket" id="bracket"></div>
+        </div>
+
+        <!-- HUD -->
         <div id="hud">
-            <div class="combatant-hud left" id="hud-left">
-                <div class="combatant-name"><span class="icon">🐉</span><span class="text">Monster 1</span></div>
-                <div class="health-bar-outer"><div class="health-bar-inner" id="health-left"></div></div>
-                <div class="health-text" id="health-text-left">100 / 100</div>
-            </div>
-            <div id="round-indicator">
+            <div class="combatant-hud left" id="hud-left"></div>
+            <div id="round-display">
                 <div class="round">Round <span id="round-num">1</span></div>
                 <div class="turn" id="turn-text">Battle Start!</div>
             </div>
-            <div class="combatant-hud right" id="hud-right">
-                <div class="combatant-name"><span class="icon">👁</span><span class="text">Monster 2</span></div>
-                <div class="health-bar-outer"><div class="health-bar-inner" id="health-right"></div></div>
-                <div class="health-text" id="health-text-right">100 / 100</div>
-            </div>
+            <div class="combatant-hud right" id="hud-right"></div>
             <div id="combat-log"></div>
-            <div id="controls-hint">🖱️ Drag to rotate • Scroll to zoom</div>
+            <div id="battle-controls">
+                <button class="control-btn" id="pause-btn" onclick="togglePause()">⏸️ Pause</button>
+                <button class="control-btn" onclick="skipBattle()">⏭️ Skip</button>
+                <button class="control-btn" onclick="endBattle()">🚪 Exit</button>
+            </div>
+            <div id="manual-panel">
+                <div class="manual-title">Your Actions</div>
+                <div class="action-grid" id="action-grid"></div>
+            </div>
         </div>
 
-        <div id="victory-screen">
-            <div class="victory-title">⚔️ VICTORY ⚔️</div>
-            <div class="victory-icon" id="victory-icon">🐉</div>
-            <div class="victory-name" id="victory-name">Winner Name</div>
-            <button class="start-btn" onclick="resetGame()">Fight Again</button>
+        <!-- Victory Screen -->
+        <div id="victory-screen" class="screen">
+            <div class="victory-title">🏆 VICTORY 🏆</div>
+            <div class="victory-icon" id="victory-icon"></div>
+            <div class="victory-name" id="victory-name"></div>
+            <div class="victory-stats" id="victory-stats"></div>
+            <button class="mode-btn" onclick="closeVictory()">Continue</button>
+        </div>
+
+        <!-- Stats Screen -->
+        <div id="stats-screen" class="screen">
+            <div class="select-header">
+                <button class="header-btn" onclick="backToTitle()">← Back</button>
+                <div class="select-title">📊 Battle Statistics</div>
+                <button class="header-btn" onclick="clearStats()">Clear Stats</button>
+            </div>
+            <div class="stats-grid" id="stats-grid"></div>
         </div>
     </div>
 
-    <script>
-    // ============================================
-    // MONSTER DATABASE
-    // ============================================
-    const MONSTERS = {
-        "ancient-red-dragon": {
-            name: "Ancient Red Dragon", icon: "🐉", type: "dragon", cr: 24,
-            hp: 546, ac: 22, color: 0xff3300,
-            abilities: { str: 30, dex: 10, con: 29, int: 18, wis: 15, cha: 23 },
-            attacks: [{ name: "Bite", hit: 17, dmg: "4d10+10", type: "piercing" },
-                      { name: "Claw", hit: 17, dmg: "2d6+10", type: "slashing" }],
-            multiattack: 3,
-            special: { name: "Fire Breath", dmg: "26d6", type: "fire", save: { stat: "dex", dc: 24 }, recharge: true }
-        },
-        "tarrasque": {
-            name: "Tarrasque", icon: "🦖", type: "beast", cr: 30,
-            hp: 676, ac: 25, color: 0x4a3728,
-            abilities: { str: 30, dex: 11, con: 30, int: 3, wis: 11, cha: 11 },
-            attacks: [{ name: "Bite", hit: 19, dmg: "4d12+10", type: "piercing" },
-                      { name: "Claw", hit: 19, dmg: "4d8+10", type: "slashing" },
-                      { name: "Tail", hit: 19, dmg: "4d6+10", type: "bludgeoning" }],
-            multiattack: 5,
-            immunities: ["fire", "poison"]
-        },
-        "beholder": {
-            name: "Beholder", icon: "👁", type: "aberration", cr: 13,
-            hp: 180, ac: 18, color: 0x6b3fa0,
-            abilities: { str: 10, dex: 14, con: 18, int: 17, wis: 15, cha: 17 },
-            attacks: [{ name: "Bite", hit: 5, dmg: "4d6", type: "piercing" }],
-            special: { name: "Disintegration Ray", dmg: "10d8", type: "force", save: { stat: "dex", dc: 16 } },
-            eyeRays: true
-        },
-        "lich": {
-            name: "Lich", icon: "💀", type: "undead", cr: 21,
-            hp: 135, ac: 17, color: 0x4a7c59,
-            abilities: { str: 11, dex: 16, con: 16, int: 20, wis: 14, cha: 16 },
-            attacks: [{ name: "Paralyzing Touch", hit: 12, dmg: "3d6", type: "cold" }],
-            special: { name: "Power Word Kill", instant: true, threshold: 100 },
-            spellcaster: true,
-            immunities: ["poison", "necrotic"]
-        },
-        "pit-fiend": {
-            name: "Pit Fiend", icon: "👿", type: "fiend", cr: 20,
-            hp: 300, ac: 19, color: 0x8b0000,
-            abilities: { str: 26, dex: 14, con: 24, int: 22, wis: 18, cha: 24 },
-            attacks: [{ name: "Bite", hit: 14, dmg: "4d6+8", type: "piercing" },
-                      { name: "Mace", hit: 14, dmg: "2d6+8", type: "bludgeoning" }],
-            multiattack: 4,
-            special: { name: "Fireball", dmg: "10d6", type: "fire", save: { stat: "dex", dc: 21 } },
-            immunities: ["fire", "poison"]
-        },
-        "balor": {
-            name: "Balor", icon: "🔥", type: "fiend", cr: 19,
-            hp: 262, ac: 19, color: 0xff4400,
-            abilities: { str: 26, dex: 15, con: 22, int: 20, wis: 16, cha: 22 },
-            attacks: [{ name: "Longsword", hit: 14, dmg: "3d8+8", type: "slashing" },
-                      { name: "Whip", hit: 14, dmg: "2d6+8", type: "fire" }],
-            multiattack: 2,
-            special: { name: "Fire Aura", dmg: "3d6", type: "fire", aura: true },
-            immunities: ["fire", "poison"]
-        },
-        "kraken": {
-            name: "Kraken", icon: "🐙", type: "aberration", cr: 23,
-            hp: 472, ac: 18, color: 0x1e3a5f,
-            abilities: { str: 30, dex: 11, con: 25, int: 22, wis: 18, cha: 20 },
-            attacks: [{ name: "Tentacle", hit: 17, dmg: "3d6+10", type: "bludgeoning" }],
-            multiattack: 3,
-            special: { name: "Lightning Storm", dmg: "22d6", type: "lightning", save: { stat: "dex", dc: 23 }, recharge: true },
-            immunities: ["lightning"]
-        },
-        "storm-giant": {
-            name: "Storm Giant", icon: "⛈️", type: "giant", cr: 13,
-            hp: 230, ac: 16, color: 0x4169e1,
-            abilities: { str: 29, dex: 14, con: 20, int: 16, wis: 18, cha: 18 },
-            attacks: [{ name: "Greatsword", hit: 14, dmg: "6d6+9", type: "slashing" }],
-            multiattack: 2,
-            special: { name: "Lightning Strike", dmg: "12d8", type: "lightning", save: { stat: "dex", dc: 17 }, recharge: true },
-            immunities: ["lightning", "thunder"]
-        },
-        "death-knight": {
-            name: "Death Knight", icon: "⚔️", type: "undead", cr: 17,
-            hp: 180, ac: 20, color: 0x2f4f4f,
-            abilities: { str: 20, dex: 11, con: 20, int: 12, wis: 16, cha: 18 },
-            attacks: [{ name: "Longsword", hit: 11, dmg: "1d8+5", type: "slashing", extra: "4d8 necrotic" }],
-            multiattack: 3,
-            special: { name: "Hellfire Orb", dmg: "10d6", type: "fire", extra: "10d6 necrotic", save: { stat: "dex", dc: 18 }, recharge: true },
-            immunities: ["necrotic", "poison"]
-        },
-        "iron-golem": {
-            name: "Iron Golem", icon: "🤖", type: "construct", cr: 16,
-            hp: 210, ac: 20, color: 0x708090,
-            abilities: { str: 24, dex: 9, con: 20, int: 3, wis: 11, cha: 1 },
-            attacks: [{ name: "Slam", hit: 13, dmg: "3d8+7", type: "bludgeoning" }],
-            multiattack: 2,
-            special: { name: "Poison Breath", dmg: "10d8", type: "poison", save: { stat: "con", dc: 19 }, recharge: true },
-            immunities: ["fire", "poison", "psychic"],
-            fireAbsorption: true
-        },
-        "mind-flayer": {
-            name: "Mind Flayer", icon: "🦑", type: "aberration", cr: 7,
-            hp: 71, ac: 15, color: 0x9932cc,
-            abilities: { str: 11, dex: 12, con: 12, int: 19, wis: 17, cha: 17 },
-            attacks: [{ name: "Tentacles", hit: 7, dmg: "2d10+4", type: "psychic" }],
-            special: { name: "Mind Blast", dmg: "4d8+4", type: "psychic", save: { stat: "int", dc: 15 }, recharge: true, stun: true }
-        },
-        "vampire": {
-            name: "Vampire", icon: "🧛", type: "undead", cr: 13,
-            hp: 144, ac: 16, color: 0x4a0000,
-            abilities: { str: 18, dex: 18, con: 18, int: 17, wis: 15, cha: 18 },
-            attacks: [{ name: "Unarmed", hit: 9, dmg: "1d8+4", type: "bludgeoning" },
-                      { name: "Bite", hit: 9, dmg: "1d6+4", type: "piercing", extra: "3d6 necrotic" }],
-            multiattack: 2,
-            regeneration: 20
+<script>
+// ==================== THREE.JS SETUP ====================
+let scene, camera, renderer, clock;
+let monsters3D = {};
+let particles = [];
+let cameraAngle = 0, cameraHeight = 10, cameraDistance = 25;
+let isMouseDown = false, mouseX = 0, mouseY = 0;
+let maxTeamSize = 1, minTeamSize = 1;
+
+function initThreeJS() {
+    scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x0a0505, 0.012);
+
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    updateCamera();
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+    clock = new THREE.Clock();
+
+    createArena();
+    createLighting();
+    setupControls();
+    animate();
+
+    setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+}
+
+function createArena() {
+    // Floor
+    const floorGeom = new THREE.CircleGeometry(18, 64);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8 });
+    const floor = new THREE.Mesh(floorGeom, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // Rune circles
+    [12, 8, 4].forEach((radius, i) => {
+        const runeGeom = new THREE.RingGeometry(radius - 0.2, radius, 64);
+        const runeMat = new THREE.MeshBasicMaterial({ color: 0xc9a227, transparent: true, opacity: 0.4 - i * 0.1 });
+        const rune = new THREE.Mesh(runeGeom, runeMat);
+        rune.rotation.x = -Math.PI / 2;
+        rune.position.y = 0.01;
+        scene.add(rune);
+    });
+
+    // Columns with torches
+    for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        const x = Math.cos(angle) * 16;
+        const z = Math.sin(angle) * 16;
+
+        const colGeom = new THREE.CylinderGeometry(0.4, 0.5, 7, 8);
+        const colMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a });
+        const column = new THREE.Mesh(colGeom, colMat);
+        column.position.set(x, 3.5, z);
+        column.castShadow = true;
+        scene.add(column);
+
+        if (i % 2 === 0) {
+            const light = new THREE.PointLight(0xff6600, 0.8, 12);
+            light.position.set(x, 6, z);
+            scene.add(light);
         }
-    };
+    }
 
-    // ============================================
-    // THREE.JS SCENE SETUP
-    // ============================================
-    let scene, camera, renderer, clock;
-    let arena, monsters = {}, particles = [];
-    let isMouseDown = false, mouseX = 0, mouseY = 0;
-    let cameraAngle = 0, cameraHeight = 8, cameraDistance = 20;
-    let battleState = null;
+    // Sky
+    const skyGeom = new THREE.SphereGeometry(100, 32, 32);
+    const skyMat = new THREE.MeshBasicMaterial({ color: 0x0a0505, side: THREE.BackSide });
+    scene.add(new THREE.Mesh(skyGeom, skyMat));
 
-    function initThreeJS() {
-        // Scene
-        scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x0a0505, 0.015);
+    // Ambient particles
+    const dustGeom = new THREE.BufferGeometry();
+    const dustPositions = new Float32Array(300 * 3);
+    for (let i = 0; i < 300; i++) {
+        dustPositions[i * 3] = (Math.random() - 0.5) * 40;
+        dustPositions[i * 3 + 1] = Math.random() * 15;
+        dustPositions[i * 3 + 2] = (Math.random() - 0.5) * 40;
+    }
+    dustGeom.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+    const dustMat = new THREE.PointsMaterial({ color: 0xc9a227, size: 0.05, transparent: true, opacity: 0.4 });
+    const dust = new THREE.Points(dustGeom, dustMat);
+    dust.userData.type = 'dust';
+    scene.add(dust);
+    particles.push(dust);
+}
 
-        // Camera
-        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        updateCamera();
+function createLighting() {
+    scene.add(new THREE.AmbientLight(0x331111, 0.4));
 
-        // Renderer
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const mainLight = new THREE.SpotLight(0xffeedd, 1.5);
+    mainLight.position.set(0, 25, 0);
+    mainLight.angle = Math.PI / 4;
+    mainLight.castShadow = true;
+    scene.add(mainLight);
+
+    const redLight = new THREE.PointLight(0xff3300, 0.6, 25);
+    redLight.position.set(-10, 5, 0);
+    scene.add(redLight);
+
+    const blueLight = new THREE.PointLight(0x3366ff, 0.6, 25);
+    blueLight.position.set(10, 5, 0);
+    scene.add(blueLight);
+}
+
+function updateCamera() {
+    camera.position.x = Math.sin(cameraAngle) * cameraDistance;
+    camera.position.z = Math.cos(cameraAngle) * cameraDistance;
+    camera.position.y = cameraHeight;
+    camera.lookAt(0, 2, 0);
+}
+
+function setupControls() {
+    const canvas = renderer.domElement;
+    canvas.addEventListener('mousedown', e => { isMouseDown = true; mouseX = e.clientX; mouseY = e.clientY; });
+    canvas.addEventListener('mousemove', e => {
+        if (isMouseDown) {
+            cameraAngle -= (e.clientX - mouseX) * 0.01;
+            cameraHeight = Math.max(3, Math.min(20, cameraHeight + (e.clientY - mouseY) * 0.05));
+            mouseX = e.clientX; mouseY = e.clientY;
+        }
+    });
+    canvas.addEventListener('mouseup', () => isMouseDown = false);
+    canvas.addEventListener('wheel', e => cameraDistance = Math.max(12, Math.min(45, cameraDistance + e.deltaY * 0.02)));
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.2;
-        document.getElementById('canvas-container').appendChild(renderer.domElement);
+    });
+}
 
-        clock = new THREE.Clock();
+function animate() {
+    requestAnimationFrame(animate);
+    const time = clock.getElapsedTime();
 
-        // Create arena
-        createArena();
+    // Auto-rotate when battle running
+    if (Game.isRunning && !isMouseDown) cameraAngle += 0.002;
+    updateCamera();
 
-        // Lighting
-        createLighting();
+    // Animate monsters
+    Object.values(monsters3D).forEach(m => {
+        if (m.userData?.alive !== false) {
+            m.position.y = (m.userData?.baseY || 0) + Math.sin(time * 2 + (m.userData?.phase || 0)) * 0.1;
+        }
+    });
 
-        // Start animation
-        animate();
-
-        // Hide loading
-        setTimeout(() => {
-            document.getElementById('loading').style.display = 'none';
-        }, 500);
-
-        // Event listeners
-        setupControls();
-    }
-
-    function createArena() {
-        // Ground - stone floor with glow
-        const floorGeom = new THREE.CircleGeometry(15, 64);
-        const floorMat = new THREE.MeshStandardMaterial({
-            color: 0x2a2a2a,
-            roughness: 0.8,
-            metalness: 0.2
-        });
-        const floor = new THREE.Mesh(floorGeom, floorMat);
-        floor.rotation.x = -Math.PI / 2;
-        floor.receiveShadow = true;
-        scene.add(floor);
-
-        // Glowing rune circle
-        const runeGeom = new THREE.RingGeometry(10, 10.5, 64);
-        const runeMat = new THREE.MeshBasicMaterial({ color: 0xc9a227, transparent: true, opacity: 0.6 });
-        const runes = new THREE.Mesh(runeGeom, runeMat);
-        runes.rotation.x = -Math.PI / 2;
-        runes.position.y = 0.01;
-        scene.add(runes);
-
-        // Inner rune circle
-        const innerRuneGeom = new THREE.RingGeometry(5, 5.3, 64);
-        const innerRunes = new THREE.Mesh(innerRuneGeom, runeMat.clone());
-        innerRunes.rotation.x = -Math.PI / 2;
-        innerRunes.position.y = 0.01;
-        scene.add(innerRunes);
-
-        // Arena walls (columns)
-        for (let i = 0; i < 12; i++) {
-            const angle = (i / 12) * Math.PI * 2;
-            const x = Math.cos(angle) * 14;
-            const z = Math.sin(angle) * 14;
-
-            // Column
-            const colGeom = new THREE.CylinderGeometry(0.5, 0.6, 8, 8);
-            const colMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.7 });
-            const column = new THREE.Mesh(colGeom, colMat);
-            column.position.set(x, 4, z);
-            column.castShadow = true;
-            scene.add(column);
-
-            // Torch fire (every other column)
-            if (i % 2 === 0) {
-                const torchLight = new THREE.PointLight(0xff6600, 1, 10);
-                torchLight.position.set(x, 6, z);
-                scene.add(torchLight);
-
-                // Fire particles
-                createTorchFire(x, 5.5, z);
+    // Animate dust
+    particles.forEach(p => {
+        if (p.userData?.type === 'dust') {
+            const pos = p.geometry.attributes.position.array;
+            for (let i = 1; i < pos.length; i += 3) {
+                pos[i] += 0.003;
+                if (pos[i] > 15) pos[i] = 0;
             }
+            p.geometry.attributes.position.needsUpdate = true;
         }
+    });
 
-        // Skybox - dark gradient
-        const skyGeom = new THREE.SphereGeometry(100, 32, 32);
-        const skyMat = new THREE.MeshBasicMaterial({
-            color: 0x0a0505,
-            side: THREE.BackSide
-        });
-        const sky = new THREE.Mesh(skyGeom, skyMat);
-        scene.add(sky);
+    renderer.render(scene, camera);
+}
 
-        // Floating particles (dust/embers)
-        createAmbientParticles();
-    }
+// ==================== 3D MONSTER CREATION ====================
+function createMonster3D(combatant) {
+    const group = new THREE.Group();
+    const color = combatant.color || 0x888888;
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.5 });
 
-    function createLighting() {
-        // Ambient
-        const ambient = new THREE.AmbientLight(0x331111, 0.4);
-        scene.add(ambient);
+    // Body based on type
+    let body;
+    const type = combatant.type || 'beast';
 
-        // Main dramatic light from above
-        const mainLight = new THREE.SpotLight(0xffeedd, 1.5);
-        mainLight.position.set(0, 25, 0);
-        mainLight.angle = Math.PI / 4;
-        mainLight.penumbra = 0.5;
-        mainLight.castShadow = true;
-        mainLight.shadow.mapSize.width = 2048;
-        mainLight.shadow.mapSize.height = 2048;
-        scene.add(mainLight);
-
-        // Red corner light
-        const redLight = new THREE.PointLight(0xff3300, 0.8, 20);
-        redLight.position.set(-8, 5, 0);
-        scene.add(redLight);
-
-        // Blue corner light
-        const blueLight = new THREE.PointLight(0x3366ff, 0.8, 20);
-        blueLight.position.set(8, 5, 0);
-        scene.add(blueLight);
-    }
-
-    function createTorchFire(x, y, z) {
-        const particleCount = 20;
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-
-        for (let i = 0; i < particleCount; i++) {
-            positions[i * 3] = x + (Math.random() - 0.5) * 0.3;
-            positions[i * 3 + 1] = y + Math.random() * 0.5;
-            positions[i * 3 + 2] = z + (Math.random() - 0.5) * 0.3;
-        }
-
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-        const material = new THREE.PointsMaterial({
-            color: 0xff6600,
-            size: 0.2,
-            transparent: true,
-            opacity: 0.8,
-            blending: THREE.AdditiveBlending
-        });
-
-        const fire = new THREE.Points(geometry, material);
-        fire.userData = { type: 'torch', baseY: y, baseX: x, baseZ: z };
-        scene.add(fire);
-        particles.push(fire);
-    }
-
-    function createAmbientParticles() {
-        const particleCount = 200;
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-
-        for (let i = 0; i < particleCount; i++) {
-            positions[i * 3] = (Math.random() - 0.5) * 30;
-            positions[i * 3 + 1] = Math.random() * 15;
-            positions[i * 3 + 2] = (Math.random() - 0.5) * 30;
-        }
-
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-        const material = new THREE.PointsMaterial({
-            color: 0xc9a227,
-            size: 0.05,
-            transparent: true,
-            opacity: 0.4,
-            blending: THREE.AdditiveBlending
-        });
-
-        const dust = new THREE.Points(geometry, material);
-        dust.userData = { type: 'dust' };
-        scene.add(dust);
-        particles.push(dust);
-    }
-
-    // ============================================
-    // 3D MONSTER CREATION
-    // ============================================
-    function createMonster3D(monsterData, side) {
-        const group = new THREE.Group();
-        const color = monsterData.color || 0x888888;
-        const type = monsterData.type || 'beast';
-
-        // Base body based on type
-        let body;
-        switch (type) {
-            case 'dragon':
-                body = createDragonBody(color);
-                break;
-            case 'undead':
-                body = createUndeadBody(color);
-                break;
-            case 'fiend':
-                body = createFiendBody(color);
-                break;
-            case 'aberration':
-                body = createAberrationBody(color);
-                break;
-            case 'giant':
-                body = createGiantBody(color);
-                break;
-            case 'construct':
-                body = createConstructBody(color);
-                break;
-            default:
-                body = createBeastBody(color);
-        }
-
-        group.add(body);
-
-        // Glowing eyes
-        const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-        const eyeGeom = new THREE.SphereGeometry(0.1, 8, 8);
-
-        const leftEye = new THREE.Mesh(eyeGeom, eyeMat);
-        leftEye.position.set(-0.2, 1.5, 0.4);
-        group.add(leftEye);
-
-        const rightEye = new THREE.Mesh(eyeGeom, eyeMat.clone());
-        rightEye.position.set(0.2, 1.5, 0.4);
-        group.add(rightEye);
-
-        // Position based on side
-        const xPos = side === 'red' ? -6 : 6;
-        group.position.set(xPos, 0, 0);
-        group.rotation.y = side === 'red' ? Math.PI / 6 : -Math.PI / 6;
-
-        group.userData = {
-            monster: monsterData,
-            side: side,
-            baseY: 0,
-            idlePhase: Math.random() * Math.PI * 2
-        };
-
-        scene.add(group);
-        return group;
-    }
-
-    function createDragonBody(color) {
-        const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.3 });
-
-        // Body
-        const bodyGeom = new THREE.ConeGeometry(0.8, 2, 8);
-        const body = new THREE.Mesh(bodyGeom, mat);
-        body.position.y = 1;
-        body.rotation.x = Math.PI / 8;
-        group.add(body);
-
-        // Head
-        const headGeom = new THREE.ConeGeometry(0.4, 1, 6);
-        const head = new THREE.Mesh(headGeom, mat);
+    if (type === 'dragon') {
+        // Dragon body
+        body = new THREE.Group();
+        const torso = new THREE.Mesh(new THREE.ConeGeometry(0.8, 2, 8), mat);
+        torso.position.y = 1;
+        body.add(torso);
+        const head = new THREE.Mesh(new THREE.ConeGeometry(0.4, 1, 6), mat);
         head.position.set(0, 1.8, 0.6);
         head.rotation.x = Math.PI / 2;
-        group.add(head);
-
+        body.add(head);
         // Wings
-        const wingGeom = new THREE.ConeGeometry(0.3, 2, 4);
-        const leftWing = new THREE.Mesh(wingGeom, mat);
-        leftWing.position.set(-1, 1.5, -0.3);
-        leftWing.rotation.z = Math.PI / 3;
-        group.add(leftWing);
-
-        const rightWing = new THREE.Mesh(wingGeom, mat);
-        rightWing.position.set(1, 1.5, -0.3);
-        rightWing.rotation.z = -Math.PI / 3;
-        group.add(rightWing);
-
-        // Tail
-        const tailGeom = new THREE.CylinderGeometry(0.1, 0.3, 2, 8);
-        const tail = new THREE.Mesh(tailGeom, mat);
-        tail.position.set(0, 0.5, -1.2);
-        tail.rotation.x = Math.PI / 4;
-        group.add(tail);
-
-        return group;
-    }
-
-    function createUndeadBody(color) {
-        const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.1, transparent: true, opacity: 0.9 });
-
-        // Skull
-        const skullGeom = new THREE.SphereGeometry(0.5, 8, 8);
-        const skull = new THREE.Mesh(skullGeom, mat);
+        const wingGeom = new THREE.ConeGeometry(0.3, 1.8, 4);
+        [-1, 1].forEach(side => {
+            const wing = new THREE.Mesh(wingGeom, mat);
+            wing.position.set(side, 1.5, -0.3);
+            wing.rotation.z = side * Math.PI / 3;
+            body.add(wing);
+        });
+    } else if (type === 'undead') {
+        body = new THREE.Group();
+        const skull = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 8), mat);
         skull.position.y = 1.8;
-        skull.scale.y = 1.2;
-        group.add(skull);
-
-        // Body (skeletal/robed)
-        const bodyGeom = new THREE.ConeGeometry(0.6, 1.5, 6);
-        const body = new THREE.Mesh(bodyGeom, mat);
-        body.position.y = 0.8;
-        group.add(body);
-
-        // Spectral aura
-        const auraGeom = new THREE.SphereGeometry(1.2, 16, 16);
-        const auraMat = new THREE.MeshBasicMaterial({ color: 0x44ff44, transparent: true, opacity: 0.15, side: THREE.BackSide });
-        const aura = new THREE.Mesh(auraGeom, auraMat);
+        body.add(skull);
+        const robe = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.5, 6), mat);
+        robe.position.y = 0.8;
+        body.add(robe);
+        // Aura
+        const aura = new THREE.Mesh(new THREE.SphereGeometry(1.2, 16, 16), new THREE.MeshBasicMaterial({ color: 0x44ff44, transparent: true, opacity: 0.15, side: THREE.BackSide }));
         aura.position.y = 1.2;
-        group.add(aura);
-
-        return group;
-    }
-
-    function createFiendBody(color) {
-        const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.4 });
-
-        // Body
-        const bodyGeom = new THREE.CylinderGeometry(0.4, 0.7, 2, 8);
-        const body = new THREE.Mesh(bodyGeom, mat);
-        body.position.y = 1;
-        group.add(body);
-
-        // Head
-        const headGeom = new THREE.SphereGeometry(0.4, 8, 8);
-        const head = new THREE.Mesh(headGeom, mat);
+        body.add(aura);
+    } else if (type === 'fiend') {
+        body = new THREE.Group();
+        const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.7, 2, 8), mat);
+        torso.position.y = 1;
+        body.add(torso);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), mat);
         head.position.y = 2.2;
-        group.add(head);
-
+        body.add(head);
         // Horns
-        const hornGeom = new THREE.ConeGeometry(0.1, 0.5, 6);
         const hornMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
-        const leftHorn = new THREE.Mesh(hornGeom, hornMat);
-        leftHorn.position.set(-0.3, 2.5, 0);
-        leftHorn.rotation.z = Math.PI / 6;
-        group.add(leftHorn);
-
-        const rightHorn = new THREE.Mesh(hornGeom, hornMat);
-        rightHorn.position.set(0.3, 2.5, 0);
-        rightHorn.rotation.z = -Math.PI / 6;
-        group.add(rightHorn);
-
-        // Wings
-        const wingGeom = new THREE.PlaneGeometry(1.5, 1);
-        const wingMat = new THREE.MeshStandardMaterial({ color: 0x330000, side: THREE.DoubleSide });
-        const leftWing = new THREE.Mesh(wingGeom, wingMat);
-        leftWing.position.set(-1, 1.5, -0.2);
-        leftWing.rotation.y = -Math.PI / 4;
-        group.add(leftWing);
-
-        const rightWing = new THREE.Mesh(wingGeom, wingMat);
-        rightWing.position.set(1, 1.5, -0.2);
-        rightWing.rotation.y = Math.PI / 4;
-        group.add(rightWing);
-
-        return group;
-    }
-
-    function createAberrationBody(color) {
-        const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.2 });
-
-        // Main eye/body
-        const bodyGeom = new THREE.SphereGeometry(0.8, 16, 16);
-        const body = new THREE.Mesh(bodyGeom, mat);
-        body.position.y = 1.5;
-        group.add(body);
-
+        [-1, 1].forEach(side => {
+            const horn = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.5, 6), hornMat);
+            horn.position.set(side * 0.3, 2.5, 0);
+            horn.rotation.z = side * Math.PI / 6;
+            body.add(horn);
+        });
+    } else if (type === 'aberration') {
+        body = new THREE.Group();
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), mat);
+        eye.position.y = 1.5;
+        body.add(eye);
         // Central eye
-        const eyeGeom = new THREE.SphereGeometry(0.3, 16, 16);
-        const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-        const eye = new THREE.Mesh(eyeGeom, eyeMat);
-        eye.position.set(0, 1.5, 0.7);
-        group.add(eye);
-
-        // Pupil
-        const pupilGeom = new THREE.SphereGeometry(0.15, 8, 8);
-        const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-        const pupil = new THREE.Mesh(pupilGeom, pupilMat);
-        pupil.position.set(0, 1.5, 0.9);
-        group.add(pupil);
-
-        // Tentacles/eyestalks
-        for (let i = 0; i < 6; i++) {
-            const angle = (i / 6) * Math.PI * 2;
-            const tentGeom = new THREE.CylinderGeometry(0.05, 0.08, 0.8, 6);
-            const tent = new THREE.Mesh(tentGeom, mat);
-            tent.position.set(Math.cos(angle) * 0.5, 2.2, Math.sin(angle) * 0.5);
-            tent.rotation.x = Math.PI / 6;
-            tent.rotation.z = angle;
-            group.add(tent);
+        const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+        pupil.position.set(0, 1.5, 0.7);
+        body.add(pupil);
+        // Eyestalks
+        for (let i = 0; i < 5; i++) {
+            const angle = (i / 5) * Math.PI * 2;
+            const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.6, 6), mat);
+            stalk.position.set(Math.cos(angle) * 0.5, 2.1, Math.sin(angle) * 0.5);
+            stalk.rotation.x = Math.PI / 6;
+            body.add(stalk);
         }
-
-        return group;
-    }
-
-    function createGiantBody(color) {
-        const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.1 });
-
-        // Body
-        const bodyGeom = new THREE.CylinderGeometry(0.6, 0.8, 2.5, 8);
-        const body = new THREE.Mesh(bodyGeom, mat);
-        body.position.y = 1.5;
-        group.add(body);
-
-        // Head
-        const headGeom = new THREE.SphereGeometry(0.5, 8, 8);
-        const head = new THREE.Mesh(headGeom, mat);
+    } else if (type === 'giant') {
+        body = new THREE.Group();
+        const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.8, 2.5, 8), mat);
+        torso.position.y = 1.5;
+        body.add(torso);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 8), mat);
         head.position.y = 3;
-        head.scale.y = 1.1;
-        group.add(head);
-
-        // Arms
-        const armGeom = new THREE.CylinderGeometry(0.15, 0.2, 1.5, 6);
-        const leftArm = new THREE.Mesh(armGeom, mat);
-        leftArm.position.set(-0.9, 2, 0);
-        leftArm.rotation.z = Math.PI / 6;
-        group.add(leftArm);
-
-        const rightArm = new THREE.Mesh(armGeom, mat);
-        rightArm.position.set(0.9, 2, 0);
-        rightArm.rotation.z = -Math.PI / 6;
-        group.add(rightArm);
-
-        // Legs
-        const legGeom = new THREE.CylinderGeometry(0.2, 0.25, 1, 6);
-        const leftLeg = new THREE.Mesh(legGeom, mat);
-        leftLeg.position.set(-0.35, 0.5, 0);
-        group.add(leftLeg);
-
-        const rightLeg = new THREE.Mesh(legGeom, mat);
-        rightLeg.position.set(0.35, 0.5, 0);
-        group.add(rightLeg);
-
-        // Scale up for giant
-        group.scale.set(1.5, 1.5, 1.5);
-
-        return group;
-    }
-
-    function createConstructBody(color) {
-        const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.8 });
-
-        // Body (blocky)
-        const bodyGeom = new THREE.BoxGeometry(1.2, 1.5, 0.8);
-        const body = new THREE.Mesh(bodyGeom, mat);
-        body.position.y = 1.5;
-        group.add(body);
-
-        // Head
-        const headGeom = new THREE.BoxGeometry(0.7, 0.6, 0.6);
-        const head = new THREE.Mesh(headGeom, mat);
+        body.add(head);
+        body.scale.set(1.4, 1.4, 1.4);
+    } else if (type === 'construct') {
+        body = new THREE.Group();
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.5, 0.8), mat);
+        torso.position.y = 1.5;
+        body.add(torso);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.6, 0.6), mat);
         head.position.y = 2.5;
-        group.add(head);
-
-        // Arms
-        const armGeom = new THREE.BoxGeometry(0.3, 1.2, 0.3);
-        const leftArm = new THREE.Mesh(armGeom, mat);
-        leftArm.position.set(-0.9, 1.5, 0);
-        group.add(leftArm);
-
-        const rightArm = new THREE.Mesh(armGeom, mat);
-        rightArm.position.set(0.9, 1.5, 0);
-        group.add(rightArm);
-
-        // Legs
-        const legGeom = new THREE.BoxGeometry(0.4, 1, 0.4);
-        const leftLeg = new THREE.Mesh(legGeom, mat);
-        leftLeg.position.set(-0.35, 0.5, 0);
-        group.add(leftLeg);
-
-        const rightLeg = new THREE.Mesh(legGeom, mat);
-        rightLeg.position.set(0.35, 0.5, 0);
-        group.add(rightLeg);
-
-        // Glowing core
-        const coreGeom = new THREE.SphereGeometry(0.2, 8, 8);
-        const coreMat = new THREE.MeshBasicMaterial({ color: 0xff6600 });
-        const core = new THREE.Mesh(coreGeom, coreMat);
+        body.add(head);
+        // Core glow
+        const core = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff6600 }));
         core.position.y = 1.5;
-        group.add(core);
-
-        return group;
+        body.add(core);
+    } else if (type === 'ooze') {
+        // Cube/blob
+        body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.7 }));
+        body.position.y = 0.75;
+    } else {
+        // Default beast
+        body = new THREE.Group();
+        const torso = new THREE.Mesh(new THREE.SphereGeometry(0.8, 8, 8), mat);
+        torso.position.y = 1;
+        torso.scale.set(1, 0.7, 1.3);
+        body.add(torso);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), mat);
+        head.position.set(0, 1.2, 0.8);
+        body.add(head);
     }
 
-    function createBeastBody(color) {
-        const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.1 });
+    group.add(body);
 
-        // Body
-        const bodyGeom = new THREE.SphereGeometry(0.8, 8, 8);
-        const body = new THREE.Mesh(bodyGeom, mat);
-        body.position.y = 1;
-        body.scale.set(1, 0.7, 1.3);
-        group.add(body);
+    // Eyes
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    [-0.15, 0.15].forEach(x => {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), eyeMat);
+        eye.position.set(x, type === 'aberration' ? 1.5 : 1.6, type === 'ooze' ? 0.7 : 0.4);
+        group.add(eye);
+    });
 
-        // Head
-        const headGeom = new THREE.SphereGeometry(0.4, 8, 8);
-        const head = new THREE.Mesh(headGeom, mat);
-        head.position.set(0, 1.3, 0.8);
-        group.add(head);
+    group.position.set(combatant.position.x, 0, combatant.position.z);
+    group.rotation.y = combatant.team === 'red' ? Math.PI / 6 : -Math.PI / 6;
+    group.userData = { id: combatant.id, alive: true, baseY: 0, phase: Math.random() * Math.PI * 2 };
 
-        // Snout
-        const snoutGeom = new THREE.ConeGeometry(0.2, 0.5, 6);
-        const snout = new THREE.Mesh(snoutGeom, mat);
-        snout.position.set(0, 1.2, 1.2);
-        snout.rotation.x = Math.PI / 2;
-        group.add(snout);
+    scene.add(group);
+    return group;
+}
 
-        // Legs
-        const legGeom = new THREE.CylinderGeometry(0.1, 0.12, 0.8, 6);
-        const positions = [[-0.4, 0.4, 0.4], [0.4, 0.4, 0.4], [-0.4, 0.4, -0.4], [0.4, 0.4, -0.4]];
-        positions.forEach(pos => {
-            const leg = new THREE.Mesh(legGeom, mat);
-            leg.position.set(...pos);
-            group.add(leg);
-        });
+function createAttackEffect(attacker3D, defender3D, type) {
+    const start = attacker3D.position.clone();
+    start.y += 1.5;
+    const end = defender3D.position.clone();
+    end.y += 1.5;
 
-        // Tail
-        const tailGeom = new THREE.CylinderGeometry(0.05, 0.12, 1, 6);
-        const tail = new THREE.Mesh(tailGeom, mat);
-        tail.position.set(0, 1, -1);
-        tail.rotation.x = -Math.PI / 4;
-        group.add(tail);
+    const colors = { fire: 0xff4400, cold: 0x44ccff, lightning: 0xffff00, necrotic: 0x44ff44, poison: 0x00ff00, psychic: 0x9944ff, acid: 0x88ff00, force: 0xff00ff, thunder: 0x6666ff };
+    const color = colors[type] || 0xffffff;
 
-        return group;
-    }
+    const geom = new THREE.BufferGeometry();
+    const positions = new Float32Array(40 * 3);
+    const velocities = [];
 
-    // ============================================
-    // PARTICLE EFFECTS
-    // ============================================
-    function createAttackEffect(attacker, defender, type) {
-        const startPos = attacker.position.clone();
-        startPos.y += 1.5;
-        const endPos = defender.position.clone();
-        endPos.y += 1.5;
-
-        const color = {
-            'fire': 0xff4400,
-            'cold': 0x44ccff,
-            'lightning': 0xffff00,
-            'necrotic': 0x44ff44,
-            'force': 0xff00ff,
-            'poison': 0x00ff00,
-            'psychic': 0x9944ff,
-            'piercing': 0xffffff,
-            'slashing': 0xcccccc,
-            'bludgeoning': 0x888888
-        }[type] || 0xff6600;
-
-        // Create particle trail
-        const particleCount = 50;
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        const velocities = [];
-
-        for (let i = 0; i < particleCount; i++) {
-            positions[i * 3] = startPos.x;
-            positions[i * 3 + 1] = startPos.y;
-            positions[i * 3 + 2] = startPos.z;
-
-            velocities.push({
-                x: (endPos.x - startPos.x) / 30 + (Math.random() - 0.5) * 0.2,
-                y: (endPos.y - startPos.y) / 30 + (Math.random() - 0.5) * 0.2,
-                z: (endPos.z - startPos.z) / 30 + (Math.random() - 0.5) * 0.2
-            });
-        }
-
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-        const material = new THREE.PointsMaterial({
-            color: color,
-            size: 0.3,
-            transparent: true,
-            opacity: 1,
-            blending: THREE.AdditiveBlending
-        });
-
-        const particles = new THREE.Points(geometry, material);
-        particles.userData = {
-            type: 'attack',
-            velocities: velocities,
-            life: 30,
-            endPos: endPos
-        };
-
-        scene.add(particles);
-
-        // Impact effect after delay
-        setTimeout(() => {
-            createImpactEffect(endPos, color);
-        }, 300);
-    }
-
-    function createImpactEffect(position, color) {
-        const particleCount = 30;
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        const velocities = [];
-
-        for (let i = 0; i < particleCount; i++) {
-            positions[i * 3] = position.x;
-            positions[i * 3 + 1] = position.y;
-            positions[i * 3 + 2] = position.z;
-
-            const angle = Math.random() * Math.PI * 2;
-            const speed = Math.random() * 0.3 + 0.1;
-            velocities.push({
-                x: Math.cos(angle) * speed,
-                y: Math.random() * 0.3,
-                z: Math.sin(angle) * speed
-            });
-        }
-
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-        const material = new THREE.PointsMaterial({
-            color: color,
-            size: 0.25,
-            transparent: true,
-            opacity: 1,
-            blending: THREE.AdditiveBlending
-        });
-
-        const impact = new THREE.Points(geometry, material);
-        impact.userData = {
-            type: 'impact',
-            velocities: velocities,
-            life: 40
-        };
-
-        scene.add(impact);
-    }
-
-    function createBreathWeapon(attacker, defender, type) {
-        const startPos = attacker.position.clone();
-        startPos.y += 1.5;
-        const direction = defender.position.clone().sub(startPos).normalize();
-
-        const color = {
-            'fire': 0xff4400,
-            'cold': 0x44ccff,
-            'lightning': 0xffff00,
-            'poison': 0x00ff00,
-            'acid': 0x88ff00
-        }[type] || 0xff4400;
-
-        // Cone of particles
-        const particleCount = 200;
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        const velocities = [];
-
-        for (let i = 0; i < particleCount; i++) {
-            positions[i * 3] = startPos.x;
-            positions[i * 3 + 1] = startPos.y;
-            positions[i * 3 + 2] = startPos.z;
-
-            const spread = 0.5;
-            velocities.push({
-                x: direction.x * 0.5 + (Math.random() - 0.5) * spread,
-                y: direction.y * 0.5 + (Math.random() - 0.5) * spread,
-                z: direction.z * 0.5 + (Math.random() - 0.5) * spread,
-                delay: Math.floor(Math.random() * 20)
-            });
-        }
-
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-        const material = new THREE.PointsMaterial({
-            color: color,
-            size: 0.4,
-            transparent: true,
-            opacity: 0.9,
-            blending: THREE.AdditiveBlending
-        });
-
-        const breath = new THREE.Points(geometry, material);
-        breath.userData = {
-            type: 'breath',
-            velocities: velocities,
-            life: 60,
-            frame: 0
-        };
-
-        scene.add(breath);
-    }
-
-    // ============================================
-    // ANIMATION LOOP
-    // ============================================
-    function animate() {
-        requestAnimationFrame(animate);
-
-        const delta = clock.getDelta();
-        const time = clock.getElapsedTime();
-
-        // Auto-rotate camera slightly
-        if (!isMouseDown && battleState?.isRunning) {
-            cameraAngle += delta * 0.1;
-        }
-        updateCamera();
-
-        // Animate monsters
-        Object.values(monsters).forEach(m => {
-            if (m.userData) {
-                // Idle breathing/bobbing
-                m.position.y = m.userData.baseY + Math.sin(time * 2 + m.userData.idlePhase) * 0.1;
-                // Slight rotation wobble
-                m.rotation.y += Math.sin(time * 1.5 + m.userData.idlePhase) * 0.002;
-            }
-        });
-
-        // Animate particles
-        particles.forEach((p, index) => {
-            if (p.userData.type === 'torch') {
-                // Torch fire animation
-                const positions = p.geometry.attributes.position.array;
-                for (let i = 0; i < positions.length; i += 3) {
-                    positions[i] = p.userData.baseX + (Math.random() - 0.5) * 0.3;
-                    positions[i + 1] = p.userData.baseY + Math.random() * 0.8;
-                    positions[i + 2] = p.userData.baseZ + (Math.random() - 0.5) * 0.3;
-                }
-                p.geometry.attributes.position.needsUpdate = true;
-            } else if (p.userData.type === 'dust') {
-                // Floating dust
-                const positions = p.geometry.attributes.position.array;
-                for (let i = 1; i < positions.length; i += 3) {
-                    positions[i] += 0.005;
-                    if (positions[i] > 15) positions[i] = 0;
-                }
-                p.geometry.attributes.position.needsUpdate = true;
-            }
-        });
-
-        // Animate attack particles
-        scene.children.forEach(child => {
-            if (child.userData?.type === 'attack') {
-                const positions = child.geometry.attributes.position.array;
-                const velocities = child.userData.velocities;
-
-                for (let i = 0; i < velocities.length; i++) {
-                    positions[i * 3] += velocities[i].x;
-                    positions[i * 3 + 1] += velocities[i].y;
-                    positions[i * 3 + 2] += velocities[i].z;
-                }
-
-                child.geometry.attributes.position.needsUpdate = true;
-                child.material.opacity -= 0.02;
-                child.userData.life--;
-
-                if (child.userData.life <= 0) {
-                    scene.remove(child);
-                }
-            } else if (child.userData?.type === 'impact') {
-                const positions = child.geometry.attributes.position.array;
-                const velocities = child.userData.velocities;
-
-                for (let i = 0; i < velocities.length; i++) {
-                    positions[i * 3] += velocities[i].x;
-                    positions[i * 3 + 1] += velocities[i].y;
-                    positions[i * 3 + 2] += velocities[i].z;
-                    velocities[i].y -= 0.01; // gravity
-                }
-
-                child.geometry.attributes.position.needsUpdate = true;
-                child.material.opacity -= 0.025;
-                child.userData.life--;
-
-                if (child.userData.life <= 0) {
-                    scene.remove(child);
-                }
-            } else if (child.userData?.type === 'breath') {
-                const positions = child.geometry.attributes.position.array;
-                const velocities = child.userData.velocities;
-                child.userData.frame++;
-
-                for (let i = 0; i < velocities.length; i++) {
-                    if (child.userData.frame > velocities[i].delay) {
-                        positions[i * 3] += velocities[i].x;
-                        positions[i * 3 + 1] += velocities[i].y;
-                        positions[i * 3 + 2] += velocities[i].z;
-                    }
-                }
-
-                child.geometry.attributes.position.needsUpdate = true;
-                child.userData.life--;
-
-                if (child.userData.life <= 0) {
-                    scene.remove(child);
-                }
-            }
-        });
-
-        renderer.render(scene, camera);
-    }
-
-    function updateCamera() {
-        camera.position.x = Math.sin(cameraAngle) * cameraDistance;
-        camera.position.z = Math.cos(cameraAngle) * cameraDistance;
-        camera.position.y = cameraHeight;
-        camera.lookAt(0, 2, 0);
-    }
-
-    function setupControls() {
-        const canvas = renderer.domElement;
-
-        canvas.addEventListener('mousedown', (e) => {
-            isMouseDown = true;
-            mouseX = e.clientX;
-            mouseY = e.clientY;
-        });
-
-        canvas.addEventListener('mousemove', (e) => {
-            if (isMouseDown) {
-                const deltaX = e.clientX - mouseX;
-                const deltaY = e.clientY - mouseY;
-                cameraAngle -= deltaX * 0.01;
-                cameraHeight = Math.max(3, Math.min(20, cameraHeight + deltaY * 0.05));
-                mouseX = e.clientX;
-                mouseY = e.clientY;
-            }
-        });
-
-        canvas.addEventListener('mouseup', () => isMouseDown = false);
-        canvas.addEventListener('mouseleave', () => isMouseDown = false);
-
-        canvas.addEventListener('wheel', (e) => {
-            cameraDistance = Math.max(10, Math.min(40, cameraDistance + e.deltaY * 0.02));
-        });
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+    for (let i = 0; i < 40; i++) {
+        positions[i * 3] = start.x;
+        positions[i * 3 + 1] = start.y;
+        positions[i * 3 + 2] = start.z;
+        velocities.push({
+            x: (end.x - start.x) / 25 + (Math.random() - 0.5) * 0.15,
+            y: (end.y - start.y) / 25 + (Math.random() - 0.5) * 0.15,
+            z: (end.z - start.z) / 25 + (Math.random() - 0.5) * 0.15
         });
     }
 
-    // ============================================
-    // UI & GAME LOGIC
-    // ============================================
-    let selectedRed = null;
-    let selectedBlue = null;
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({ color, size: 0.25, transparent: true, blending: THREE.AdditiveBlending });
+    const effect = new THREE.Points(geom, mat);
+    effect.userData = { velocities, life: 25 };
+    scene.add(effect);
 
-    function showSelection() {
-        document.getElementById('title-screen').style.display = 'none';
-        document.getElementById('selection-screen').style.display = 'block';
-        populateMonsterLists();
+    // Animate
+    const animateEffect = () => {
+        if (effect.userData.life <= 0) { scene.remove(effect); return; }
+        const pos = effect.geometry.attributes.position.array;
+        effect.userData.velocities.forEach((v, i) => {
+            pos[i * 3] += v.x;
+            pos[i * 3 + 1] += v.y;
+            pos[i * 3 + 2] += v.z;
+        });
+        effect.geometry.attributes.position.needsUpdate = true;
+        effect.material.opacity -= 0.04;
+        effect.userData.life--;
+        requestAnimationFrame(animateEffect);
+    };
+    animateEffect();
+
+    // Impact
+    setTimeout(() => createImpact(end, color), 250);
+}
+
+function createImpact(pos, color) {
+    const geom = new THREE.BufferGeometry();
+    const positions = new Float32Array(25 * 3);
+    const velocities = [];
+
+    for (let i = 0; i < 25; i++) {
+        positions[i * 3] = pos.x;
+        positions[i * 3 + 1] = pos.y;
+        positions[i * 3 + 2] = pos.z;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 0.2 + 0.1;
+        velocities.push({ x: Math.cos(angle) * speed, y: Math.random() * 0.2, z: Math.sin(angle) * speed });
     }
 
-    function backToTitle() {
-        document.getElementById('selection-screen').style.display = 'none';
-        document.getElementById('title-screen').style.display = 'flex';
-        selectedRed = null;
-        selectedBlue = null;
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({ color, size: 0.2, transparent: true, blending: THREE.AdditiveBlending });
+    const impact = new THREE.Points(geom, mat);
+    impact.userData = { velocities, life: 30 };
+    scene.add(impact);
+
+    const animateImpact = () => {
+        if (impact.userData.life <= 0) { scene.remove(impact); return; }
+        const pos = impact.geometry.attributes.position.array;
+        impact.userData.velocities.forEach((v, i) => {
+            pos[i * 3] += v.x;
+            pos[i * 3 + 1] += v.y;
+            pos[i * 3 + 2] += v.z;
+            v.y -= 0.008;
+        });
+        impact.geometry.attributes.position.needsUpdate = true;
+        impact.material.opacity -= 0.03;
+        impact.userData.life--;
+        requestAnimationFrame(animateImpact);
+    };
+    animateImpact();
+}
+
+// ==================== UI FUNCTIONS ====================
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id)?.classList.add('active');
+}
+
+function startMode(mode) {
+    Game.mode = mode;
+    Game.isManual = (mode === 'manual');
+    Game.redTeam = [];
+    Game.blueTeam = [];
+
+    if (mode === '1v1' || mode === 'manual') {
+        maxTeamSize = 1; minTeamSize = 1;
+    } else if (mode === 'team') {
+        maxTeamSize = 4; minTeamSize = 2;
+    } else if (mode === 'tournament') {
+        maxTeamSize = 8; minTeamSize = 8;
+        Game.tournamentFighters = [];
+        setupTournamentSelect();
+        return;
     }
 
-    function populateMonsterLists() {
-        const redList = document.getElementById('red-list');
-        const blueList = document.getElementById('blue-list');
+    const title = mode === 'manual' ? 'Select Your Champion (You control Red)' :
+                  mode === 'team' ? 'Build Your Teams (2-4 each)' : 'Select Your Champions';
+    document.getElementById('select-title').textContent = title;
 
-        redList.innerHTML = '';
-        blueList.innerHTML = '';
+    setupTeamSelect();
+    showScreen('select-screen');
+    AudioSystem.init();
+    AudioSystem.playSelect();
+}
 
-        Object.entries(MONSTERS).forEach(([key, m]) => {
-            const html = `
-                <div class="monster-option" data-key="${key}">
-                    <span class="icon">${m.icon}</span>
-                    <div class="name">${m.name}</div>
-                    <div class="cr">CR ${m.cr}</div>
-                </div>
-            `;
-            redList.innerHTML += html;
-            blueList.innerHTML += html;
+function setupTeamSelect() {
+    const types = getMonsterTypes();
+    ['red', 'blue'].forEach(team => {
+        const filters = document.getElementById(`${team}-filters`);
+        filters.innerHTML = '<button class="type-btn active" data-type="all">All</button>' +
+            types.map(t => `<button class="type-btn" data-type="${t}">${t}</button>`).join('');
+
+        filters.querySelectorAll('.type-btn').forEach(btn => {
+            btn.onclick = () => {
+                filters.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                filterGrid(team, btn.dataset.type);
+            };
         });
 
-        // Event listeners
-        redList.querySelectorAll('.monster-option').forEach(el => {
-            el.addEventListener('click', () => selectMonster('red', el.dataset.key));
-        });
+        renderMonsterGrid(team);
+        updateTeamSlots(team);
+    });
+}
 
-        blueList.querySelectorAll('.monster-option').forEach(el => {
-            el.addEventListener('click', () => selectMonster('blue', el.dataset.key));
-        });
+function renderMonsterGrid(team) {
+    const grid = document.getElementById(`${team}-grid`);
+    const teamArr = team === 'red' ? Game.redTeam : Game.blueTeam;
+    const otherTeam = team === 'red' ? Game.blueTeam : Game.redTeam;
+
+    grid.innerHTML = getMonstersByCR().map(([key, m]) => {
+        const inTeam = teamArr.some(t => t.key === key);
+        const inOther = otherTeam.some(t => t.key === key);
+        const isFull = teamArr.length >= maxTeamSize;
+        const disabled = inOther || (isFull && !inTeam);
+
+        return `<div class="monster-card ${inTeam ? 'selected' : ''} ${disabled ? 'disabled' : ''}"
+                     data-key="${key}" data-type="${m.type}" onclick="toggleMonster('${key}', '${team}')">
+            <div class="icon">${m.icon}</div>
+            <div class="name">${m.name}</div>
+            <div class="cr">CR ${m.cr}</div>
+        </div>`;
+    }).join('');
+}
+
+function filterGrid(team, type) {
+    const grid = document.getElementById(`${team}-grid`);
+    grid.querySelectorAll('.monster-card').forEach(card => {
+        card.style.display = (type === 'all' || card.dataset.type === type) ? 'block' : 'none';
+    });
+}
+
+function toggleMonster(key, team) {
+    const teamArr = team === 'red' ? Game.redTeam : Game.blueTeam;
+    const idx = teamArr.findIndex(m => m.key === key);
+
+    if (idx >= 0) {
+        teamArr.splice(idx, 1);
+    } else if (teamArr.length < maxTeamSize) {
+        teamArr.push({ ...MONSTERS[key], key });
     }
 
-    function selectMonster(side, key) {
-        const list = document.getElementById(`${side}-list`);
+    renderMonsterGrid('red');
+    renderMonsterGrid('blue');
+    updateTeamSlots('red');
+    updateTeamSlots('blue');
+    updateFightButton();
+    AudioSystem.playSelect();
+}
 
-        // Clear previous selection
-        list.querySelectorAll('.monster-option').forEach(el => el.classList.remove('selected'));
+function updateTeamSlots(team) {
+    const slots = document.getElementById(`${team}-slots`);
+    const teamArr = team === 'red' ? Game.redTeam : Game.blueTeam;
 
-        // Select new
-        list.querySelector(`[data-key="${key}"]`).classList.add('selected');
-
-        if (side === 'red') {
-            selectedRed = key;
+    slots.innerHTML = '';
+    for (let i = 0; i < maxTeamSize; i++) {
+        const m = teamArr[i];
+        if (m) {
+            slots.innerHTML += `<div class="team-slot filled" onclick="removeFromTeam('${team}', ${i})">
+                <div class="icon">${m.icon}</div>
+                <div class="name">${m.name}</div>
+            </div>`;
         } else {
-            selectedBlue = key;
+            slots.innerHTML += `<div class="team-slot">${i + 1}</div>`;
         }
-
-        // Enable fight button if both selected
-        document.getElementById('fight-btn').disabled = !(selectedRed && selectedBlue);
     }
+}
 
-    function startBattle() {
-        if (!selectedRed || !selectedBlue) return;
+function removeFromTeam(team, idx) {
+    const teamArr = team === 'red' ? Game.redTeam : Game.blueTeam;
+    teamArr.splice(idx, 1);
+    renderMonsterGrid('red');
+    renderMonsterGrid('blue');
+    updateTeamSlots(team);
+    updateFightButton();
+}
 
-        // Hide selection, show HUD
-        document.getElementById('selection-screen').style.display = 'none';
-        document.getElementById('hud').style.display = 'block';
+function updateFightButton() {
+    const btn = document.getElementById('fight-btn');
+    btn.disabled = !(Game.redTeam.length >= minTeamSize && Game.blueTeam.length >= minTeamSize);
+}
 
-        // Create 3D monsters
-        if (monsters.red) scene.remove(monsters.red);
-        if (monsters.blue) scene.remove(monsters.blue);
+function backToTitle() {
+    Game.isRunning = false;
+    AudioSystem.stopMusic();
+    clearArena();
+    showScreen('title-screen');
+}
 
-        monsters.red = createMonster3D(MONSTERS[selectedRed], 'red');
-        monsters.blue = createMonster3D(MONSTERS[selectedBlue], 'blue');
+// ==================== TOURNAMENT ====================
+function setupTournamentSelect() {
+    Game.tournamentFighters = [];
+    showScreen('select-screen');
+    document.getElementById('select-title').textContent = 'Select 8 Tournament Fighters';
 
-        // Initialize battle state
-        battleState = {
-            isRunning: true,
-            round: 1,
-            red: {
-                ...MONSTERS[selectedRed],
-                key: selectedRed,
-                currentHp: MONSTERS[selectedRed].hp,
-                maxHp: MONSTERS[selectedRed].hp,
-                specialCharged: true
-            },
-            blue: {
-                ...MONSTERS[selectedBlue],
-                key: selectedBlue,
-                currentHp: MONSTERS[selectedBlue].hp,
-                maxHp: MONSTERS[selectedBlue].hp,
-                specialCharged: true
-            }
+    const filters = document.getElementById('red-filters');
+    filters.innerHTML = '<button class="type-btn active" data-type="all">All</button>' +
+        getMonsterTypes().map(t => `<button class="type-btn" data-type="${t}">${t}</button>`).join('');
+
+    filters.querySelectorAll('.type-btn').forEach(btn => {
+        btn.onclick = () => {
+            filters.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            filterTournamentGrid(btn.dataset.type);
         };
+    });
 
-        // Update HUD
-        updateHUD();
+    renderTournamentGrid();
+    updateTournamentSlots();
 
-        // Clear combat log
-        document.getElementById('combat-log').innerHTML = '';
-        logMessage('⚔️ BATTLE BEGINS! ⚔️', 'round');
+    // Hide blue panel
+    document.querySelector('.select-body').style.gridTemplateColumns = '1fr';
+    document.querySelectorAll('.team-panel')[1].style.display = 'none';
+    document.querySelector('.vs-panel').style.display = 'none';
+}
 
-        // Roll initiative and start
-        const redInit = rollD20() + getMod(battleState.red.abilities.dex);
-        const blueInit = rollD20() + getMod(battleState.blue.abilities.dex);
+function renderTournamentGrid() {
+    const grid = document.getElementById('red-grid');
+    grid.innerHTML = getMonstersByCR().map(([key, m]) => {
+        const selected = Game.tournamentFighters.some(f => f.key === key);
+        const disabled = !selected && Game.tournamentFighters.length >= 8;
+        return `<div class="monster-card ${selected ? 'selected' : ''} ${disabled ? 'disabled' : ''}"
+                     data-key="${key}" data-type="${m.type}" onclick="toggleTournamentFighter('${key}')">
+            <div class="icon">${m.icon}</div>
+            <div class="name">${m.name}</div>
+            <div class="cr">CR ${m.cr}</div>
+        </div>`;
+    }).join('');
+}
 
-        logMessage(`${battleState.red.icon} ${battleState.red.name} rolls ${redInit} initiative`);
-        logMessage(`${battleState.blue.icon} ${battleState.blue.name} rolls ${blueInit} initiative`);
+function filterTournamentGrid(type) {
+    document.querySelectorAll('#red-grid .monster-card').forEach(card => {
+        card.style.display = (type === 'all' || card.dataset.type === type) ? 'block' : 'none';
+    });
+}
 
-        battleState.turnOrder = redInit >= blueInit ? ['red', 'blue'] : ['blue', 'red'];
-        battleState.currentTurn = 0;
+function toggleTournamentFighter(key) {
+    const idx = Game.tournamentFighters.findIndex(f => f.key === key);
+    if (idx >= 0) {
+        Game.tournamentFighters.splice(idx, 1);
+    } else if (Game.tournamentFighters.length < 8) {
+        Game.tournamentFighters.push({ ...MONSTERS[key], key });
+    }
+    renderTournamentGrid();
+    updateTournamentSlots();
+    AudioSystem.playSelect();
+}
 
-        logMessage(`${MONSTERS[battleState.turnOrder[0] === 'red' ? selectedRed : selectedBlue].name} goes first!`, 'round');
-
-        // Start combat loop
-        setTimeout(runCombatTurn, 1500);
+function updateTournamentSlots() {
+    const slots = document.getElementById('red-slots');
+    slots.innerHTML = '';
+    for (let i = 0; i < 8; i++) {
+        const f = Game.tournamentFighters[i];
+        if (f) {
+            slots.innerHTML += `<div class="team-slot filled" onclick="removeTournamentFighter(${i})">
+                <div class="icon">${f.icon}</div>
+                <div class="name">${f.name}</div>
+            </div>`;
+        } else {
+            slots.innerHTML += `<div class="team-slot">${i + 1}</div>`;
+        }
     }
 
-    function runCombatTurn() {
-        if (!battleState?.isRunning) return;
+    const btn = document.getElementById('fight-btn');
+    btn.textContent = '🏆 Start Tournament';
+    btn.disabled = Game.tournamentFighters.length !== 8;
+    btn.onclick = startTournament;
+}
 
-        const attackerSide = battleState.turnOrder[battleState.currentTurn];
-        const defenderSide = attackerSide === 'red' ? 'blue' : 'red';
+function removeTournamentFighter(idx) {
+    Game.tournamentFighters.splice(idx, 1);
+    renderTournamentGrid();
+    updateTournamentSlots();
+}
 
-        const attacker = battleState[attackerSide];
-        const defender = battleState[defenderSide];
+function startTournament() {
+    initTournament(Game.tournamentFighters);
 
-        // Update turn indicator
-        document.getElementById('turn-text').textContent = `${attacker.icon} ${attacker.name}'s turn`;
+    // Reset selection screen
+    document.querySelector('.select-body').style.gridTemplateColumns = '1fr 120px 1fr';
+    document.querySelectorAll('.team-panel')[1].style.display = '';
+    document.querySelector('.vs-panel').style.display = '';
+    document.getElementById('fight-btn').onclick = startBattle;
+    document.getElementById('fight-btn').textContent = '⚔️ FIGHT';
 
-        // Regeneration
-        if (attacker.regeneration && attacker.currentHp > 0) {
-            attacker.currentHp = Math.min(attacker.maxHp, attacker.currentHp + attacker.regeneration);
-            logMessage(`${attacker.icon} regenerates ${attacker.regeneration} HP!`, 'ability');
-            updateHUD();
-        }
+    renderBracket();
+    showScreen('tournament-screen');
+}
 
-        // Recharge special
-        if (!attacker.specialCharged && attacker.special?.recharge) {
-            if (rollD20() >= 5) {
-                attacker.specialCharged = true;
-                logMessage(`${attacker.icon} ${attacker.special.name} recharged!`, 'ability');
-            }
-        }
+function renderBracket() {
+    const bracket = document.getElementById('bracket');
+    const matches = Game.tournament.matches;
 
-        // Choose action: special or attacks
-        setTimeout(() => {
-            if (attacker.special && attacker.specialCharged && Math.random() > 0.4) {
-                executeSpecial(attackerSide, defenderSide);
-            } else {
-                executeAttacks(attackerSide, defenderSide);
-            }
-        }, 500);
+    bracket.innerHTML = `
+        <div class="bracket-round">
+            <div class="round-label">Quarter Finals</div>
+            ${[0,1,2,3].map(i => renderMatch(matches[i], i)).join('')}
+        </div>
+        <div class="bracket-round">
+            <div class="round-label">Semi Finals</div>
+            ${[4,5].map(i => renderMatch(matches[i], i)).join('')}
+        </div>
+        <div class="bracket-round">
+            <div class="round-label">FINAL</div>
+            ${renderMatch(matches[6], 6)}
+        </div>
+    `;
+
+    document.getElementById('next-match-btn').disabled = Game.tournament.currentMatch >= 7;
+}
+
+function renderMatch(match, idx) {
+    const isActive = idx === Game.tournament.currentMatch && match.winner === null;
+    return `<div class="bracket-match ${isActive ? 'active' : ''}">
+        ${match.fighters.map((f, i) => {
+            if (!f) return '<div class="bracket-fighter"><span style="color:#666">TBD</span></div>';
+            const isWinner = match.winner === i;
+            const isLoser = match.winner !== null && match.winner !== i;
+            return `<div class="bracket-fighter ${isWinner ? 'winner' : ''} ${isLoser ? 'loser' : ''}">
+                <span class="icon">${f.icon}</span>
+                <span class="name">${f.name}</span>
+            </div>`;
+        }).join('')}
+    </div>`;
+}
+
+function runNextMatch() {
+    const match = Game.tournament.matches[Game.tournament.currentMatch];
+    if (!match || match.winner !== null) return;
+
+    Game.mode = 'tournament-match';
+    Game.redTeam = [{ ...match.fighters[0] }];
+    Game.blueTeam = [{ ...match.fighters[1] }];
+
+    showScreen('select-screen');
+    document.getElementById('select-screen').classList.remove('active');
+    startBattle();
+}
+
+// ==================== BATTLE ====================
+function startBattle() {
+    showScreen('select-screen');
+    document.getElementById('select-screen').classList.remove('active');
+    document.getElementById('hud').style.display = 'block';
+
+    clearArena();
+    const combatants = initializeBattle();
+
+    // Create 3D monsters
+    combatants.forEach(c => {
+        monsters3D[c.id] = createMonster3D(c);
+    });
+
+    // Setup HUD
+    updateHUD();
+    document.getElementById('combat-log').innerHTML = '';
+    log('⚔️ BATTLE BEGINS! ⚔️', 'round');
+
+    combatants.forEach(c => {
+        log(`${c.icon} ${c.name} rolls initiative: ${c.initiative}`, '');
+    });
+    log(`${combatants[0].icon} ${combatants[0].name} goes first!`, 'round');
+
+    AudioSystem.startBattleMusic();
+
+    if (Game.isManual) {
+        document.getElementById('manual-panel').style.display = 'block';
     }
 
-    function executeSpecial(attackerSide, defenderSide) {
-        const attacker = battleState[attackerSide];
-        const defender = battleState[defenderSide];
-        const special = attacker.special;
+    setTimeout(runCombatLoop, 1500);
+}
 
-        attacker.specialCharged = false;
+async function runCombatLoop() {
+    Game.isRunning = true;
 
-        // Power Word Kill
-        if (special.instant && special.threshold) {
-            if (defender.currentHp <= special.threshold) {
-                logMessage(`${attacker.icon} casts POWER WORD KILL!`, 'critical');
-                defender.currentHp = 0;
-                createBreathWeapon(monsters[attackerSide], monsters[defenderSide], 'necrotic');
-                updateHUD();
-                checkVictory();
-                return;
-            } else {
-                logMessage(`${attacker.icon} ${attacker.name} attempts Power Word Kill but ${defender.name} has too many HP!`, 'miss');
-                nextTurn();
-                return;
-            }
+    while (Game.isRunning) {
+        if (Game.isPaused) {
+            await delay(100);
+            continue;
         }
 
-        // Breath/spell attack
-        const dmgRoll = rollDice(special.dmg);
-        let damage = dmgRoll.total;
-
-        // Save
-        if (special.save) {
-            const saveRoll = rollD20() + getMod(defender.abilities[special.save.stat]);
-            if (saveRoll >= special.save.dc) {
-                damage = Math.floor(damage / 2);
-                logMessage(`${defender.icon} saves! (${saveRoll} vs DC ${special.save.dc})`, 'miss');
-            }
-        }
-
-        // Check immunity
-        if (defender.immunities?.includes(special.type)) {
-            logMessage(`${defender.icon} is IMMUNE to ${special.type}!`, 'miss');
-            damage = 0;
-        }
-
-        // Fire absorption
-        if (defender.fireAbsorption && special.type === 'fire') {
-            defender.currentHp = Math.min(defender.maxHp, defender.currentHp + damage);
-            logMessage(`${defender.icon} ABSORBS ${damage} fire damage!`, 'ability');
-            createBreathWeapon(monsters[attackerSide], monsters[defenderSide], special.type);
-            updateHUD();
-            nextTurn();
+        // Check victory
+        const winner = checkVictory();
+        if (winner) {
+            endBattleVictory(winner);
             return;
         }
 
-        if (damage > 0) {
-            defender.currentHp -= damage;
-            logMessage(`${attacker.icon} uses ${special.name}! ${damage} ${special.type} damage!`, 'ability');
-            createBreathWeapon(monsters[attackerSide], monsters[defenderSide], special.type);
+        // New round marker
+        if (Game.currentTurn === 0) {
+            log(`═══ ROUND ${Game.round} ═══`, 'round');
+            document.getElementById('round-num').textContent = Game.round;
+            AudioSystem.playRoundStart();
         }
 
-        updateHUD();
-        setTimeout(() => checkVictory() || nextTurn(), 1000);
-    }
+        // Get current combatant
+        const current = getNextCombatant();
+        if (!current) break;
 
-    function executeAttacks(attackerSide, defenderSide) {
-        const attacker = battleState[attackerSide];
-        const defender = battleState[defenderSide];
+        // Skip dead
+        while (!Game.combatants[Game.currentTurn]?.alive) {
+            advanceTurn();
+            if (Game.currentTurn === 0) break;
+        }
 
-        const numAttacks = attacker.multiattack || 1;
-        let attackIndex = 0;
+        const attacker = Game.combatants[Game.currentTurn];
+        if (!attacker?.alive) { advanceTurn(); continue; }
 
-        function doAttack() {
-            if (attackIndex >= numAttacks || defender.currentHp <= 0) {
-                setTimeout(() => checkVictory() || nextTurn(), 500);
-                return;
+        // Update UI
+        document.getElementById('turn-text').textContent = `${attacker.icon} ${attacker.name}'s turn`;
+        highlightActive(attacker.id);
+
+        await delay(Game.speed / 2);
+
+        // Get target function
+        const getTarget = async (atk, enemies) => {
+            if (Game.isManual && atk.team === Game.playerTeam) {
+                return await getPlayerTarget(atk, enemies);
             }
+            return selectBestTarget(atk, enemies);
+        };
 
-            const attack = attacker.attacks[attackIndex % attacker.attacks.length];
-            const roll = rollD20();
-            const isCrit = roll === 20;
-            const total = roll + attack.hit;
+        // Execute turn
+        await executeTurn(
+            attacker,
+            getTarget,
+            (atk, def, type) => {
+                if (monsters3D[atk.id] && monsters3D[def.id]) {
+                    createAttackEffect(monsters3D[atk.id], monsters3D[def.id], type);
+                }
+            },
+            (target, dmg, crit) => {
+                showDamagePopup(target, dmg, crit);
+                updateHUD();
+                if (!target.alive && monsters3D[target.id]) {
+                    monsters3D[target.id].userData.alive = false;
+                    fadeOutMonster(monsters3D[target.id]);
+                }
+            },
+            log
+        );
 
-            if (roll === 1 || (!isCrit && total < defender.ac)) {
-                logMessage(`${attacker.icon} ${attack.name} misses! (${total} vs AC ${defender.ac})`, 'miss');
+        await delay(Game.speed / 2);
+        advanceTurn();
+    }
+}
+
+function highlightActive(id) {
+    Object.entries(monsters3D).forEach(([mId, m]) => {
+        m.scale.setScalar(mId == id ? 1.15 : 1);
+    });
+}
+
+function fadeOutMonster(m) {
+    m.traverse(child => {
+        if (child.material) {
+            child.material.transparent = true;
+            child.material.opacity = 0.3;
+        }
+    });
+}
+
+function clearArena() {
+    Object.values(monsters3D).forEach(m => scene.remove(m));
+    monsters3D = {};
+}
+
+function showDamagePopup(target, dmg, crit) {
+    const m = monsters3D[target.id];
+    if (!m) return;
+
+    const vec = m.position.clone();
+    vec.project(camera);
+    const x = (vec.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-vec.y * 0.5 + 0.5) * window.innerHeight;
+
+    const popup = document.createElement('div');
+    popup.className = 'damage-popup' + (crit ? ' critical' : '');
+    popup.textContent = `-${dmg}`;
+    popup.style.left = x + 'px';
+    popup.style.top = y + 'px';
+    document.body.appendChild(popup);
+    setTimeout(() => popup.remove(), 1000);
+}
+
+function updateHUD() {
+    const redTeam = Game.combatants.filter(c => c.team === 'red');
+    const blueTeam = Game.combatants.filter(c => c.team === 'blue');
+
+    document.getElementById('hud-left').innerHTML = redTeam.map(c => renderHUDRow(c)).join('');
+    document.getElementById('hud-right').innerHTML = blueTeam.map(c => renderHUDRow(c)).join('');
+}
+
+function renderHUDRow(c) {
+    const pct = Math.max(0, (c.currentHp / c.maxHp) * 100);
+    const barClass = pct <= 25 ? 'critical' : pct <= 50 ? 'low' : '';
+    const conditions = c.conditions.map(cond => {
+        const info = STATUS_EFFECTS[cond.type] || { icon: '?', color: '#666' };
+        return `<span class="condition-badge" style="background:${info.color}">${info.icon} ${cond.type}</span>`;
+    }).join('');
+
+    return `<div class="hud-row ${!c.alive ? 'dead' : ''}">
+        <span class="hud-icon">${c.icon}</span>
+        <span class="hud-name">${c.name}</span>
+        <span class="hud-hp">${Math.max(0, c.currentHp)}/${c.maxHp}</span>
+    </div>
+    <div class="hud-row">
+        <div class="hud-bar"><div class="hud-bar-fill ${barClass}" style="width:${pct}%"></div></div>
+    </div>
+    ${conditions ? `<div class="hud-conditions">${conditions}</div>` : ''}`;
+}
+
+function log(msg, type = '') {
+    const logEl = document.getElementById('combat-log');
+    logEl.innerHTML += `<div class="log-entry ${type}">${msg}</div>`;
+    logEl.scrollTop = logEl.scrollHeight;
+}
+
+// ==================== MANUAL MODE ====================
+async function getPlayerTarget(attacker, enemies) {
+    return new Promise(resolve => {
+        Game.waitingForPlayer = true;
+        const panel = document.getElementById('manual-panel');
+        const grid = document.getElementById('action-grid');
+
+        // Show available actions
+        grid.innerHTML = '';
+
+        // Attacks
+        attacker.attacks?.forEach(atk => {
+            grid.innerHTML += `<div class="action-btn" data-action="attack" data-name="${atk.name}">
+                <div class="action-name">⚔️ ${atk.name}</div>
+                <div class="action-info">+${atk.hit} to hit, ${atk.dmg}</div>
+            </div>`;
+        });
+
+        // Special ability
+        if (attacker.special && attacker.specialCharged && attacker.special.dmg) {
+            grid.innerHTML += `<div class="action-btn" data-action="special">
+                <div class="action-name">✨ ${attacker.special.name}</div>
+                <div class="action-info">${attacker.special.dmg} ${attacker.special.type}</div>
+            </div>`;
+        }
+
+        // End turn
+        grid.innerHTML += `<div class="action-btn" data-action="end">
+            <div class="action-name">⏭️ End Turn</div>
+            <div class="action-info">Skip your action</div>
+        </div>`;
+
+        const handleClick = (e) => {
+            const btn = e.target.closest('.action-btn');
+            if (!btn) return;
+
+            const action = btn.dataset.action;
+            grid.removeEventListener('click', handleClick);
+            Game.waitingForPlayer = false;
+
+            if (action === 'end') {
+                resolve(null);
             } else {
-                let damage = rollDice(attack.dmg).total;
-                if (isCrit) damage += rollDice(attack.dmg).total;
-
-                // Extra damage
-                if (attack.extra) {
-                    const extraMatch = attack.extra.match(/(\d+d\d+)/);
-                    if (extraMatch) {
-                        const extraDmg = rollDice(extraMatch[1]).total;
-                        const extraType = attack.extra.split(' ').pop();
-                        if (!defender.immunities?.includes(extraType)) {
-                            damage += extraDmg;
-                        }
-                    }
-                }
-
-                // Check immunity
-                if (defender.immunities?.includes(attack.type)) {
-                    logMessage(`${defender.icon} is IMMUNE to ${attack.type}!`, 'miss');
-                } else {
-                    defender.currentHp -= damage;
-                    logMessage(`${attacker.icon} ${isCrit ? 'CRITICAL ' : ''}${attack.name}! ${damage} damage!`, isCrit ? 'critical' : 'damage');
-                    createAttackEffect(monsters[attackerSide], monsters[defenderSide], attack.type);
-
-                    // Hit animation
-                    if (monsters[defenderSide]) {
-                        const originalX = monsters[defenderSide].position.x;
-                        monsters[defenderSide].position.x += (attackerSide === 'red' ? 0.3 : -0.3);
-                        setTimeout(() => {
-                            if (monsters[defenderSide]) monsters[defenderSide].position.x = originalX;
-                        }, 150);
-                    }
-                }
+                // For now, auto-select first enemy
+                resolve(enemies[0]);
             }
+        };
 
-            updateHUD();
-            attackIndex++;
-            setTimeout(doAttack, 600);
+        grid.addEventListener('click', handleClick);
+    });
+}
+
+// ==================== BATTLE CONTROLS ====================
+function togglePause() {
+    Game.isPaused = !Game.isPaused;
+    document.getElementById('pause-btn').textContent = Game.isPaused ? '▶️ Resume' : '⏸️ Pause';
+}
+
+function skipBattle() {
+    Game.speed = 50;
+    Game.isPaused = false;
+}
+
+function endBattle() {
+    Game.isRunning = false;
+    AudioSystem.stopMusic();
+    document.getElementById('hud').style.display = 'none';
+    document.getElementById('manual-panel').style.display = 'none';
+    clearArena();
+
+    if (Game.mode === 'tournament-match') {
+        showScreen('tournament-screen');
+        renderBracket();
+    } else {
+        backToTitle();
+    }
+}
+
+function endBattleVictory(winningTeam) {
+    Game.isRunning = false;
+    AudioSystem.stopMusic();
+    AudioSystem.playVictory();
+
+    const winners = Game.combatants.filter(c => c.team === winningTeam && c.alive);
+    const losers = Game.combatants.filter(c => c.team !== winningTeam);
+
+    // Save stats
+    saveStats(winners, losers, Game.round);
+
+    // Tournament advancement
+    if (Game.mode === 'tournament-match') {
+        advanceTournament(winningTeam === 'red' ? 0 : 1);
+    }
+
+    // Show victory
+    document.getElementById('victory-icon').textContent = winners[0]?.icon || '🏆';
+    document.getElementById('victory-name').textContent = winners.length === 1 ? winners[0].name : `${winningTeam.toUpperCase()} TEAM`;
+    document.getElementById('victory-stats').innerHTML = `
+        <p>Rounds: ${Game.round}</p>
+        <p>Survivors: ${winners.map(w => `${w.icon} ${w.name} (${w.currentHp}/${w.maxHp} HP)`).join(', ')}</p>
+    `;
+
+    showScreen('victory-screen');
+}
+
+function closeVictory() {
+    document.getElementById('hud').style.display = 'none';
+    document.getElementById('manual-panel').style.display = 'none';
+    clearArena();
+    Game.speed = 1000;
+
+    if (Game.mode === 'tournament-match') {
+        if (Game.tournament.currentMatch < 7) {
+            showScreen('tournament-screen');
+            renderBracket();
+        } else {
+            // Tournament complete
+            alert(`🏆 TOURNAMENT CHAMPION: ${Game.tournament.champion.name}! 🏆`);
+            backToTitle();
         }
-
-        doAttack();
+    } else {
+        backToTitle();
     }
+}
 
-    function nextTurn() {
-        battleState.currentTurn = (battleState.currentTurn + 1) % 2;
+// ==================== STATISTICS ====================
+function showStats() {
+    const grid = document.getElementById('stats-grid');
+    const leaderboard = getLeaderboard();
 
-        if (battleState.currentTurn === 0) {
-            battleState.round++;
-            document.getElementById('round-num').textContent = battleState.round;
-            logMessage(`═══ ROUND ${battleState.round} ═══`, 'round');
-        }
+    grid.innerHTML = `
+        <div class="stat-card">
+            <h3>🏆 Leaderboard</h3>
+            ${leaderboard.length === 0 ? '<p style="color:#666">No battles yet!</p>' :
+              leaderboard.map((entry, i) => `
+                <div class="leaderboard-row">
+                    <span class="leaderboard-rank">${i + 1}</span>
+                    <span class="leaderboard-icon">${entry.monster.icon}</span>
+                    <span class="leaderboard-name">${entry.monster.name}</span>
+                    <span class="leaderboard-wins">${entry.wins} wins</span>
+                </div>
+            `).join('')}
+        </div>
+        <div class="stat-card">
+            <h3>📈 Overall Stats</h3>
+            <p>Total Battles: ${Game.stats.totalBattles}</p>
+            <p>Total Rounds: ${Game.stats.totalRounds}</p>
+            <p>Avg Rounds/Battle: ${Game.stats.totalBattles ? (Game.stats.totalRounds / Game.stats.totalBattles).toFixed(1) : 0}</p>
+        </div>
+        <div class="stat-card">
+            <h3>⚔️ Recent Battles</h3>
+            ${Game.stats.battles.slice(-10).reverse().map(b => `
+                <div class="leaderboard-row">
+                    <span>🏆 ${b.winners.join(', ')}</span>
+                    <span style="color:#666">vs ${b.losers.join(', ')}</span>
+                </div>
+            `).join('') || '<p style="color:#666">No battles yet!</p>'}
+        </div>
+    `;
 
-        setTimeout(runCombatTurn, 800);
-    }
+    showScreen('stats-screen');
+    AudioSystem.init();
+}
 
-    function checkVictory() {
-        if (battleState.red.currentHp <= 0) {
-            endBattle('blue');
-            return true;
-        }
-        if (battleState.blue.currentHp <= 0) {
-            endBattle('red');
-            return true;
-        }
-        return false;
-    }
-
-    function endBattle(winner) {
-        battleState.isRunning = false;
-
-        const winnerData = battleState[winner];
-        logMessage(`💀 ${battleState[winner === 'red' ? 'blue' : 'red'].name} has been DEFEATED!`, 'death');
-        logMessage(`🏆 ${winnerData.name} WINS! 🏆`, 'round');
-
-        // Death animation for loser
-        const loserSide = winner === 'red' ? 'blue' : 'red';
-        if (monsters[loserSide]) {
-            monsters[loserSide].traverse(child => {
-                if (child.material) {
-                    child.material.transparent = true;
-                    child.material.opacity = 0.3;
-                }
-            });
-        }
-
-        setTimeout(() => {
-            document.getElementById('victory-icon').textContent = winnerData.icon;
-            document.getElementById('victory-name').textContent = winnerData.name;
-            document.getElementById('victory-screen').style.display = 'flex';
-        }, 1500);
-    }
-
-    function resetGame() {
-        document.getElementById('victory-screen').style.display = 'none';
-        document.getElementById('hud').style.display = 'none';
-        document.getElementById('selection-screen').style.display = 'block';
-
-        // Clear monsters
-        if (monsters.red) scene.remove(monsters.red);
-        if (monsters.blue) scene.remove(monsters.blue);
-        monsters = {};
-
-        battleState = null;
-        selectedRed = null;
-        selectedBlue = null;
-
-        // Reset selection UI
-        document.querySelectorAll('.monster-option').forEach(el => el.classList.remove('selected'));
-        document.getElementById('fight-btn').disabled = true;
-    }
-
-    function updateHUD() {
-        if (!battleState) return;
-
-        // Red side
-        const redHp = Math.max(0, battleState.red.currentHp);
-        const redPercent = (redHp / battleState.red.maxHp) * 100;
-        document.querySelector('#hud-left .text').textContent = battleState.red.name;
-        document.querySelector('#hud-left .icon').textContent = battleState.red.icon;
-        document.getElementById('health-left').style.width = redPercent + '%';
-        document.getElementById('health-left').className = 'health-bar-inner' +
-            (redPercent <= 25 ? ' critical' : redPercent <= 50 ? ' low' : '');
-        document.getElementById('health-text-left').textContent = `${redHp} / ${battleState.red.maxHp}`;
-
-        // Blue side
-        const blueHp = Math.max(0, battleState.blue.currentHp);
-        const bluePercent = (blueHp / battleState.blue.maxHp) * 100;
-        document.querySelector('#hud-right .text').textContent = battleState.blue.name;
-        document.querySelector('#hud-right .icon').textContent = battleState.blue.icon;
-        document.getElementById('health-right').style.width = bluePercent + '%';
-        document.getElementById('health-right').className = 'health-bar-inner' +
-            (bluePercent <= 25 ? ' critical' : bluePercent <= 50 ? ' low' : '');
-        document.getElementById('health-text-right').textContent = `${blueHp} / ${battleState.blue.maxHp}`;
-    }
-
-    function logMessage(msg, type = '') {
-        const log = document.getElementById('combat-log');
-        const entry = document.createElement('div');
-        entry.className = 'log-entry ' + type;
-        entry.innerHTML = msg;
-        log.appendChild(entry);
-        log.scrollTop = log.scrollHeight;
-    }
-
-    // ============================================
-    // DICE UTILITIES
-    // ============================================
-    function rollD20() {
-        return Math.floor(Math.random() * 20) + 1;
-    }
-
-    function rollDice(notation) {
-        const match = notation.match(/(\d+)d(\d+)([+-]\d+)?/);
-        if (!match) return { total: parseInt(notation) || 0 };
-
-        const count = parseInt(match[1]);
-        const sides = parseInt(match[2]);
-        const mod = parseInt(match[3]) || 0;
-
-        let total = 0;
-        for (let i = 0; i < count; i++) {
-            total += Math.floor(Math.random() * sides) + 1;
-        }
-        return { total: total + mod };
-    }
-
-    function getMod(score) {
-        return Math.floor((score - 10) / 2);
-    }
-
-    // ============================================
-    // INIT
-    // ============================================
-    window.onload = initThreeJS;
-    </script>
+// ==================== INIT ====================
+window.onload = initThreeJS;
+</script>
 </body>
 </html>
