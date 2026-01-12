@@ -59,12 +59,12 @@ Watch an **Ancient Red Dragon** unleash its devastating fire breath upon a **Lic
 
 ```
   ┌─────────────────────────────────────────────────────────────────┐
-  │  ► ONLINE:   https://your-netlify-url.netlify.app               │
+  │  ► ONLINE:   https://dndgame2026.netlify.app/                   │
   │  ► DOWNLOAD: dnd-battle-simulator.zip (67KB)                    │
   └─────────────────────────────────────────────────────────────────┘
 ```
 
-**[>>> PLAY ONLINE <<<](https://your-netlify-url.netlify.app)** *(update with your Netlify URL)*
+**[>>> PLAY ONLINE <<<](https://dndgame2026.netlify.app/)** 
 
 **[>>> DOWNLOAD ZIP <<<](dnd-battle-simulator.zip)** - Extract and open `index.html`
 
